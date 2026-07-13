@@ -21,6 +21,7 @@ locals {
     non_prd           = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter         = var.delimiter == null ? var.context.delimiter : var.delimiter
     prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
+    tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
     attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
     tags              = merge(var.context.tags, var.tags)
   }
@@ -43,18 +44,21 @@ locals {
   id_parts = local.input.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
   id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
-  # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
-  ohi_tags_all = {
-    "ohi:project"     = local.input.project
-    "ohi:application" = local.input.application
-    "ohi:module"      = local.input.module
-    "ohi:stack-name"  = local.input.stackname
-    "ohi:environment" = local.prefix
-    "Name"            = local.id
-  }
-  ohi_tags = { for k, v in local.ohi_tags_all : k => v if v != null && v != "" }
+  # Tag-key prefix (e.g. "ohi:"). Empty string yields unprefixed keys. Name is never prefixed.
+  tag_prefix = local.input.tag_prefix == null ? "ohi:" : local.input.tag_prefix
 
-  tags = local.enabled ? merge(local.ohi_tags, local.input.tags) : {}
+  # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
+  generated_tags_all = {
+    "${local.tag_prefix}project"     = local.input.project
+    "${local.tag_prefix}application" = local.input.application
+    "${local.tag_prefix}module"      = local.input.module
+    "${local.tag_prefix}stack-name"  = local.input.stackname
+    "${local.tag_prefix}environment" = local.prefix
+    "Name"                           = local.id
+  }
+  generated_tags = { for k, v in local.generated_tags_all : k => v if v != null && v != "" }
+
+  tags = local.enabled ? merge(local.generated_tags, local.input.tags) : {}
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
@@ -72,6 +76,7 @@ locals {
     non_prd           = local.input.non_prd
     delimiter         = local.delimiter
     prefix_enabled    = local.input.prefix_enabled
+    tag_prefix        = local.tag_prefix
     tags              = local.input.tags
   }
 }

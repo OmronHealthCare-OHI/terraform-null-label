@@ -22,6 +22,7 @@ variable "context" {
     non_prd           = optional(bool, false)
     delimiter         = optional(string, "-")
     prefix_enabled    = optional(bool, true)
+    tag_prefix        = optional(string, "ohi:")
     tags              = optional(map(string), {})
   })
   default = {}
@@ -107,6 +108,12 @@ variable "prefix_enabled" {
 
 variable "delimiter" {
   description = "Delimiter between id segments."
+  type        = string
+  default     = null
+}
+
+variable "tag_prefix" {
+  description = "Prefix prepended to the generated tag keys, e.g. \"ohi:\" produces ohi:project. Set to \"\" for unprefixed keys (project, application, …). The Name tag is never prefixed."
   type        = string
   default     = null
 }
