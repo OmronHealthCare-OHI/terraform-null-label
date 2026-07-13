@@ -16,7 +16,7 @@ locals {
     project           = var.project == null ? var.context.project : var.project
     application       = var.application == null ? var.context.application : var.application
     module            = var.module == null ? var.context.module : var.module
-    stackname         = var.stackname == null ? var.context.stackname : var.stackname
+    stack_suffix      = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
     name              = var.name == null ? var.context.name : var.name
     non_prd           = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter         = var.delimiter == null ? var.context.delimiter : var.delimiter
@@ -38,6 +38,22 @@ locals {
   region      = local.input.deployment_region == null ? "" : local.input.deployment_region
   name        = local.input.name == null ? "" : local.input.name
 
+  # Tag hierarchy segments (null -> "").
+  project      = local.input.project == null ? "" : local.input.project
+  application  = local.input.application == null ? "" : local.input.application
+  module       = local.input.module == null ? "" : local.input.module
+  stack_suffix = local.input.stack_suffix == null ? "" : local.input.stack_suffix
+
+  # ohi:* hierarchy composes by nesting: project -> project-application ->
+  # project-application-module; ohi:stack-name = <PREFIX>-<project>-<stack_suffix>.
+  # application is emitted once there is an application or module segment (it
+  # defaults to the project value, as the infra set does); module and stack-name
+  # are only emitted when their own segment is set.
+  ohi_project     = local.project
+  ohi_application = (local.application == "" && local.module == "") ? "" : join(local.delimiter, compact([local.project, local.application]))
+  ohi_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
+  ohi_stack_name  = local.stack_suffix == "" ? "" : join(local.delimiter, compact([local.prefix, local.project, local.stack_suffix]))
+
   # PREFIX environment segment: <country><environment>, or <country>np when non_prd.
   environment_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.environment}"
 
@@ -58,10 +74,10 @@ locals {
 
   # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
   generated_tags_all = {
-    "${local.tag_prefix}project"     = local.input.project
-    "${local.tag_prefix}application" = local.input.application
-    "${local.tag_prefix}module"      = local.input.module
-    "${local.tag_prefix}stack-name"  = local.input.stackname
+    "${local.tag_prefix}project"     = local.ohi_project
+    "${local.tag_prefix}application" = local.ohi_application
+    "${local.tag_prefix}module"      = local.ohi_module
+    "${local.tag_prefix}stack-name"  = local.ohi_stack_name
     "${local.tag_prefix}environment" = local.prefix
     "Name"                           = local.id
   }
@@ -79,7 +95,7 @@ locals {
     project           = local.input.project
     application       = local.input.application
     module            = local.input.module
-    stackname         = local.input.stackname
+    stack_suffix      = local.input.stack_suffix
     name              = local.input.name
     attributes        = local.input.attributes
     non_prd           = local.non_prd

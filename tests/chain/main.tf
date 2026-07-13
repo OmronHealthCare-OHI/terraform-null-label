@@ -14,19 +14,19 @@ module "org" {
   environment       = "stg"
   deployment_region = "usw2"
   project           = "vlt"
-  application       = "vlt-mobile"
+  application       = "mobile"
 
   tags = {
     Team = "voltron"
   }
 }
 
-# Workload sub-label: inherits the org context, adds module + name.
+# Workload sub-label: inherits the org context, adds module segment + name.
 module "workload" {
   source = "../../"
 
   context = module.org.context
-  module  = "vlt-mobile-be"
+  module  = "be"
   name    = "vlt-mobile-api"
 }
 

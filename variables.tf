@@ -16,7 +16,7 @@ variable "context" {
     project           = optional(string, null)
     application       = optional(string, null)
     module            = optional(string, null)
-    stackname         = optional(string, null)
+    stack_suffix      = optional(string, null)
     name              = optional(string, null)
     attributes        = optional(list(string), [])
     non_prd           = optional(bool, false)
@@ -60,28 +60,33 @@ variable "non_prd" {
   default     = null
 }
 
-# --- Tag hierarchy (ohi:project / ohi:application / ohi:module / ohi:stack-name) ---
+# --- Tag hierarchy (composed by nesting) ---
+# The ohi:* values nest: ohi:project = <project>; ohi:application =
+# <project>-<application>; ohi:module = <project>-<application>-<module>;
+# ohi:stack-name = <PREFIX>-<project>-<stack_suffix>. Each segment is optional
+# (empty segments are dropped), so the default/infra set is `project=vlt,
+# application="", module="infra"` -> ohi:application=vlt, ohi:module=vlt-infra.
 
 variable "project" {
-  description = "ohi:project, e.g. vlt, common."
+  description = "Top of the tag hierarchy and the leading segment of every ohi:* value, e.g. vlt, common."
   type        = string
   default     = null
 }
 
 variable "application" {
-  description = "ohi:application, e.g. vlt-mobile, vlt-monitoring, vlt-shared-services."
+  description = "Application segment appended to project to form ohi:application (e.g. \"mobile\" -> vlt-mobile). Leave empty when the application equals the project (e.g. the infra set)."
   type        = string
   default     = null
 }
 
 variable "module" {
-  description = "ohi:module, e.g. vlt-mobile-be, vlt-users, vlt-infra."
+  description = "Module segment appended to form ohi:module (e.g. \"be\" -> vlt-mobile-be, \"infra\" -> vlt-infra)."
   type        = string
   default     = null
 }
 
-variable "stackname" {
-  description = "ohi:stack-name, e.g. usstg-usw2-vlt-be-serverless-stack."
+variable "stack_suffix" {
+  description = "Suffix appended to <PREFIX>-<project> to form ohi:stack-name (e.g. \"be-serverless-stack\" -> usstg-usw2-vlt-be-serverless-stack)."
   type        = string
   default     = null
 }

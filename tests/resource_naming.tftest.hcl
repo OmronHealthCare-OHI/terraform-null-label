@@ -8,9 +8,9 @@ run "full_label_us_stg" {
     environment       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
-    application       = "vlt-mobile"
-    module            = "vlt-mobile-be"
-    stackname         = "usstg-usw2-vlt-be-serverless-stack"
+    application       = "mobile"
+    module            = "be"
+    stack_suffix      = "be-serverless-stack"
     name              = "vlt-mobile-api"
     attributes        = ["v1"]
   }
@@ -130,5 +130,55 @@ run "bare_tag_prefix" {
   assert {
     condition     = output.tags["Name"] == "usstg-usw2-vlt-mobile-api"
     error_message = "Name tag is never prefixed and should equal the id"
+  }
+}
+
+run "infra_set_composition" {
+  command = plan
+
+  # The infra/default set: application equals the project, so the application
+  # segment is empty; module composes to <project>-infra.
+  variables {
+    country           = "us"
+    environment       = "stg"
+    deployment_region = "usw2"
+    project           = "vlt"
+    application       = ""
+    module            = "infra"
+    stack_suffix      = "tf-initial-setup-pipeline"
+  }
+
+  assert {
+    condition     = output.tags["ohi:application"] == "vlt"
+    error_message = "empty application segment should make ohi:application == project"
+  }
+  assert {
+    condition     = output.tags["ohi:module"] == "vlt-infra"
+    error_message = "module should compose to <project>-infra, got ${output.tags["ohi:module"]}"
+  }
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-tf-initial-setup-pipeline"
+    error_message = "ohi:stack-name should be <PREFIX>-<project>-<stack_suffix>"
+  }
+}
+
+run "report_normalizes_under_composition" {
+  command = plan
+
+  # Strict composition normalizes the legacy "report" exception (was vlt-report
+  # under application vlt-mobile) to vlt-mobile-report.
+  variables {
+    project     = "vlt"
+    application = "mobile"
+    module      = "report"
+  }
+
+  assert {
+    condition     = output.tags["ohi:application"] == "vlt-mobile"
+    error_message = "ohi:application should compose to vlt-mobile"
+  }
+  assert {
+    condition     = output.tags["ohi:module"] == "vlt-mobile-report"
+    error_message = "module composes under application (normalizes the legacy vlt-report), got ${output.tags["ohi:module"]}"
   }
 }

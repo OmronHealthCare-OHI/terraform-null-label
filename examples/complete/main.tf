@@ -10,10 +10,10 @@ module "label" {
   environment       = "stg"
   deployment_region = "usw2"
 
-  project     = "vlt"
-  application = "vlt-mobile"
-  module      = "vlt-mobile-be"
-  stackname   = "usstg-usw2-vlt-be-serverless-stack"
+  project      = "vlt"
+  application  = "mobile"              # -> ohi:application = vlt-mobile
+  module       = "be"                  # -> ohi:module      = vlt-mobile-be
+  stack_suffix = "be-serverless-stack" # -> ohi:stack-name  = usstg-usw2-vlt-be-serverless-stack
 
   tags = {
     Team = "voltron"

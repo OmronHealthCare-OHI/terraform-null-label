@@ -8,8 +8,8 @@ run "org_level_partial" {
     environment       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
-    application       = "vlt-mobile"
-    # no module, stackname, or name
+    application       = "mobile"
+    # no module, stack_suffix, or name
   }
 
   assert {
