@@ -1,0 +1,51 @@
+name: "Copilot Setup Steps"
+
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v6
+      # Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      # Terraform docs
+      - name: Get Terraform docs version
+        id: get-terraform-docs-version
+        run: |
+          VERSION=$(grep '^version:' .terraform-docs.yml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Setup Terraform docs
+        uses: jaxxstorm/action-install-gh-release@v2.1.0
+        with:
+          repo: terraform-docs/terraform-docs
+          tag: v${{ steps.get-terraform-docs-version.outputs.version }}
+          cache: true
+      # TFLint
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: latest
+      # python
+      - uses: actions/setup-python@v6
+      # Checkov
+      - name: Setup Checkov
+        run: pip install checkov
+      # Pre-commit
+      - name: Setup Pre-commit
+        run: pip install pre-commit

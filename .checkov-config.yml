@@ -1,0 +1,23 @@
+block-list-secret-scan: []
+branch: main
+download-external-modules: true
+evaluate-variables: true
+external-modules-download-path: .external_modules
+mask: []
+quiet: true
+secrets-history-timeout: 12h
+secrets-scan-file-type: []
+skip-results-upload: true
+skip-check:
+# Disabled CKV_TF_1 as there is a risk with using tags, but the readability is better with tags vs commit hash
+# https://docs.prismacloud.io/en/enterprise-edition/policy-reference/supply-chain-policies/terraform-policies/ensure-terraform-module-sources-use-git-url-with-commit-hash-revision
+- CKV_TF_1
+# Disabled CKV_TF_2 as we are using the terraform standard for module version
+- CKV_TF_2
+# Disabled CKV_AWS_260 to allow port 80 connections to the LB, as the listener redirects requests from 80 to 443
+# https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-networking-policies/ensure-aws-security-groups-do-not-allow-ingress-from-00000-to-port-80
+- CKV_AWS_260
+# Top-level permissions for Github Actions are allowed to be write-all for now
+- CKV2_GHA_1
+
+summary-position: top

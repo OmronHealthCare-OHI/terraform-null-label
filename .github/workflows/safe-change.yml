@@ -1,0 +1,22 @@
+name: Approve Safe Change
+
+on:
+  pull_request:
+    types:
+      - opened
+      - labeled
+      - edited
+      - ready_for_review
+
+jobs:
+  auto_approve:
+    if: github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'safe-change')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hmarr/auto-approve-action@v4
+        with:
+          review-message: "Safe Change is automatically approved."
