@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Draft Release
         id: draft-release
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@v7
         with:
           disable-autolabeler: true
           publish: false
