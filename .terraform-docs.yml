@@ -1,0 +1,29 @@
+formatter: markdown
+
+version: 0.20.0
+
+output:
+  file: "README.md"
+  mode: inject
+
+output-values:
+  enabled: false
+
+sort:
+  enabled: true
+  by: name
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: false
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 3
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

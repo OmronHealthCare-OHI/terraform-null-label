@@ -1,0 +1,64 @@
+name: Promote Release
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        description: 'The ref to promote'
+        required: true
+      type:
+        description: Type of release
+        required: true
+        type: string
+
+jobs:
+  create-tags:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to push the moving major/minor/latest tags
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.ref }}
+      - name: get SHA and retrieve all tags
+        id: sha
+        run: |
+          echo "commit=$(git log -1 --format='%H')" >> $GITHUB_OUTPUT
+          git fetch --prune --unshallow --tags
+      - name: Generate tags
+        id: tags
+        uses: actions/github-script@v8
+        if: inputs.type == 'latest'
+        with:
+          script: |
+            const version = "${{ inputs.ref }}"
+            const major = version.split('.')[0]
+            const minor = version.split('.')[1]
+
+            core.setOutput('major', major)
+            core.setOutput('minor', [major, minor].join('.'))
+      - name: Set tag - ${{ inputs.type }}
+        uses: rickstaa/action-create-tag@v1.7.2
+        id: tag
+        with:
+          tag: ${{ inputs.type }}
+          force_push_tag: true
+          commit_sha: ${{ steps.sha.outputs.commit }}
+      - name: Set tag - Major
+        uses: rickstaa/action-create-tag@v1.7.2
+        if: inputs.type == 'latest'
+        id: major
+        with:
+          tag: ${{ steps.tags.outputs.major }}
+          force_push_tag: true
+          commit_sha: ${{ steps.sha.outputs.commit }}
+      - name: Set tag - Minor
+        uses: rickstaa/action-create-tag@v1.7.2
+        if: inputs.type == 'latest'
+        id: minor
+        with:
+          tag: ${{ steps.tags.outputs.minor }}
+          force_push_tag: true
+          commit_sha: ${{ steps.sha.outputs.commit }}
