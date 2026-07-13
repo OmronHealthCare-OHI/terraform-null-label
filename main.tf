@@ -23,11 +23,15 @@ locals {
     prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
     tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
     attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
-    tags              = merge(var.context.tags, var.tags)
+    tags              = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
 
-  enabled   = local.input.enabled
-  delimiter = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
+  # Coalesce to defaults so an explicit null (as a variable or via context) can't
+  # break the conditionals below (Terraform requires a non-null bool there).
+  enabled        = local.input.enabled == null ? local.defaults.enabled : local.input.enabled
+  non_prd        = local.input.non_prd == null ? local.defaults.non_prd : local.input.non_prd
+  prefix_enabled = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
+  delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
   country     = local.input.country == null ? "" : local.input.country
   environment = local.input.environment == null ? "" : local.input.environment
@@ -35,13 +39,13 @@ locals {
   name        = local.input.name == null ? "" : local.input.name
 
   # PREFIX environment segment: <country><environment>, or <country>np when non_prd.
-  environment_segment = local.input.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.environment}"
+  environment_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.environment}"
 
   # PREFIX = <environment_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
   prefix = join(local.delimiter, compact([local.environment_segment, local.region]))
 
   # id = <PREFIX>-<name>[-<attributes...>], prefix optional.
-  id_parts = local.input.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
+  id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
   id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
   # Tag-key prefix (e.g. "ohi:"). Empty string yields unprefixed keys. Name is never prefixed.
@@ -73,9 +77,9 @@ locals {
     stackname         = local.input.stackname
     name              = local.input.name
     attributes        = local.input.attributes
-    non_prd           = local.input.non_prd
+    non_prd           = local.non_prd
     delimiter         = local.delimiter
-    prefix_enabled    = local.input.prefix_enabled
+    prefix_enabled    = local.prefix_enabled
     tag_prefix        = local.tag_prefix
     tags              = local.input.tags
   }

@@ -4,8 +4,8 @@ output "id" {
 }
 
 output "name" {
-  description = "Alias of id."
-  value       = local.id
+  description = "The resolved name segment (the `name` input, inherited via context). Use `id` for the full generated identifier."
+  value       = local.name
 }
 
 output "prefix" {
