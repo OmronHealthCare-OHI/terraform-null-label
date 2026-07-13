@@ -11,7 +11,7 @@ template: |
   **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
 
 prerelease: false
-latest: "true"
+latest: true
 include-pre-releases: true
 
 version-resolver:

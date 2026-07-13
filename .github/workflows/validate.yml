@@ -21,8 +21,6 @@ jobs:
       issues: read # for publish-unit-test-result-action to read issues
       checks: write # for publish-unit-test-result-action to create checks
       pull-requests: write # for publish-unit-test-result-action to comment on PRs
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
 
     steps:
       - name: Checkout Repository
@@ -70,7 +68,7 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@v12
         with:
-          # This will add both a CLI output to the console and create a results.sarif file
+          # CLI output to the console only (no SARIF file is produced with this config)
           output_format: cli
           output_file_path: console
           config_file: .checkov-config.yml
