@@ -1,0 +1,78 @@
+version: 1
+labels:
+  # VERSION LABELS (based on branch)
+  - label: "version: major"
+    branch: "^major/.+"
+  - label: "version: minor"
+    branch: "^feature/.+"
+  - label: "version: patch"
+    branch: "^chore/.+"
+  - label: "version: patch"
+    branch: "^bug/.+"
+  - label: "version: patch"
+    branch: "^hotfix/.+"
+  - label: "version: patch"
+    branch: "^cleanup/.+"
+  - label: "version: patch"
+    branch: "^enhancement/.+"
+
+  # VERSION LABELS (based on conventional commit title)
+  - label: "version: major"
+    title: "^(\\w+)!:"
+  - label: "version: minor"
+    title: "^feat:"
+  - label: "version: patch"
+    title: "^(fix|chore):"
+
+  # Type Labels (based on branch)
+  - label: feature
+    branch: "^feature/.+"
+  - label: bug
+    branch: "^hotfix/.+"
+  - label: bug
+    branch: "^fix/.+"
+  - label: bug
+    branch: "^bug/.+"
+
+  # Type Labels (based on conventional commit title)
+  - label: feature
+    title: "^feat(!)?:"
+  - label: bug
+    title: "^fix(!)?:"
+  - label: chore
+    title: "^chore(!)?:"
+  - label: maintenance
+    title: "^chore(!)?:"
+
+  # File-based labels
+  - label: documentation
+    files:
+      - ".*\\.md"
+      - "docs\\/.*"
+  - label: examples
+    files:
+      - "examples\\/.*"
+  - label: "infrastructure"
+    files:
+      - "^(?!examples\\/).*\\.tf$"
+      - "^(?!examples\\/).*\\.tfvars$"
+  - label: "build definition"
+    files:
+      - "\\.github\\/workflows\\/.*\\.yml"
+      - "\\.github\\/[^/]+\\.yml"
+  - label: "AI: instructions"
+    files:
+      - "\\.github\\/instructions\\/.*"
+      - "\\.github\\/copilot-instructions\\.md"
+  - label: "AI: agents"
+    files:
+      - "\\.github\\/agents\\/.*"
+
+  # PR Size Labels
+  - label: "PR-Size: S"
+    size-below: 50
+  - label: "PR-Size: M"
+    size-above: 49
+    size-below: 333
+  - label: "PR-Size: L"
+    size-above: 332
