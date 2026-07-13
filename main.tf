@@ -44,7 +44,12 @@ locals {
   # PREFIX = <environment_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
   prefix = join(local.delimiter, compact([local.environment_segment, local.region]))
 
-  # id = <PREFIX>-<name>[-<attributes...>], prefix optional.
+  # id joins the non-empty segments with the delimiter, in order: <PREFIX>,
+  # <name>, then <attributes...>. Following cloudposse null-label, `attributes`
+  # is an independent segment emitted whenever present — compact() drops an
+  # empty name, so attributes can appear without a name (e.g. `<PREFIX>-<attr>`
+  # when a caller sets attributes but no name/context). prefix is omitted when
+  # prefix_enabled = false.
   id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
   id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
