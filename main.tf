@@ -83,7 +83,9 @@ locals {
   }
   generated_tags = { for k, v in local.generated_tags_all : k => v if v != null && v != "" }
 
-  tags = local.enabled ? merge(local.generated_tags, local.input.tags) : {}
+  # Merge generated + user tags, then drop any empty-value entries so the module
+  # never emits an empty tag value (applies the generated_tags filter to the whole map).
+  tags = local.enabled ? { for k, v in merge(local.generated_tags, local.input.tags) : k => v if v != null && v != "" } : {}
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
