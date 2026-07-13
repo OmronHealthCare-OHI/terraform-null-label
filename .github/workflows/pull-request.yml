@@ -18,7 +18,7 @@ jobs:
       pull-requests: write
     steps:
       - name: PR Labeling
-        uses: srvaroa/labeler@v1.13.0
+        uses: srvaroa/labeler@v1.14.0
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
