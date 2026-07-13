@@ -13,8 +13,8 @@ jobs:
     if: github.event.pull_request.draft == false && contains(github.event.pull_request.labels.*.name, 'safe-change')
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
-      contents: write
+      pull-requests: write # to approve the PR
+      contents: read # for actions/checkout
     steps:
       - uses: actions/checkout@v6
       - uses: hmarr/auto-approve-action@v4
