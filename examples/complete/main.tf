@@ -7,7 +7,7 @@ module "label" {
   source = "../../"
 
   country           = "us"
-  environment       = "stg"
+  stage       = "stg"
   deployment_region = "usw2"
 
   project      = "vlt"
@@ -29,7 +29,7 @@ module "api_label" {
   attributes = ["v1"]
 }
 
-# Non-prod shared resource: same context, but non_prd swaps the environment segment.
+# Non-prod shared resource: same context, but non_prd swaps the stage segment.
 module "shared_nonprd_label" {
   source = "../../"
 

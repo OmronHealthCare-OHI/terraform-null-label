@@ -11,7 +11,7 @@ variable "context" {
   type = object({
     enabled           = optional(bool, true)
     country           = optional(string, null)
-    environment       = optional(string, null)
+    stage       = optional(string, null)
     deployment_region = optional(string, null)
     project           = optional(string, null)
     application       = optional(string, null)
@@ -34,7 +34,7 @@ variable "enabled" {
   default     = null
 }
 
-# --- PREFIX parts: <country><environment>-<deployment_region>, e.g. usstg-usw2 ---
+# --- PREFIX parts: <country><stage>-<deployment_region>, e.g. usstg-usw2 ---
 
 variable "country" {
   description = "Country code, e.g. us, eu, jp, in, sg, br."
@@ -42,10 +42,15 @@ variable "country" {
   default     = null
 }
 
-variable "environment" {
-  description = "Environment code, e.g. dev, qa, stg, beta, prd. Ignored for the environment segment when non_prd = true."
+variable "stage" {
+  description = "Stage code, e.g. dev, qa, stg, prd. Ignored for the stage segment when non_prd = true."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.stage == null || contains(["dev", "qa", "stg", "prd"], var.stage)
+    error_message = "The stage must be one of: dev, qa, stg, prd."
+  }
 }
 
 variable "deployment_region" {
@@ -55,7 +60,7 @@ variable "deployment_region" {
 }
 
 variable "non_prd" {
-  description = "When true, the environment segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod environment."
+  description = "When true, the stage segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod stage."
   type        = bool
   default     = null
 }

@@ -5,7 +5,7 @@ run "full_label_us_stg" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = "mobile"
@@ -17,7 +17,7 @@ run "full_label_us_stg" {
 
   assert {
     condition     = output.prefix == "usstg-usw2"
-    error_message = "PREFIX should be <country><environment>-<region> (usstg-usw2), got ${output.prefix}"
+    error_message = "PREFIX should be <country><stage>-<region> (usstg-usw2), got ${output.prefix}"
   }
   assert {
     condition     = output.id == "usstg-usw2-vlt-mobile-api-v1"
@@ -54,7 +54,7 @@ run "eu_beta_region" {
 
   variables {
     country           = "eu"
-    environment       = "beta"
+    stage       = "beta"
     deployment_region = "euw1"
     name              = "vlt-mobile-api"
   }
@@ -70,7 +70,7 @@ run "non_prd_naming" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     non_prd           = true
     name              = "vlt-shared"
@@ -95,7 +95,7 @@ run "prefix_suppressed" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     prefix_enabled    = false
     name              = "vlt-service-secrets"
@@ -112,7 +112,7 @@ run "bare_tag_prefix" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     name              = "vlt-mobile-api"
@@ -140,7 +140,7 @@ run "infra_set_composition" {
   # segment is empty; module composes to <project>-infra.
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = ""

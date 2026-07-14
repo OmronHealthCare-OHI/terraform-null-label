@@ -11,7 +11,7 @@ locals {
   input = {
     enabled           = var.enabled == null ? var.context.enabled : var.enabled
     country           = var.country == null ? var.context.country : var.country
-    environment       = var.environment == null ? var.context.environment : var.environment
+    stage             = var.stage == null ? var.context.stage : var.stage
     deployment_region = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
     project           = var.project == null ? var.context.project : var.project
     application       = var.application == null ? var.context.application : var.application
@@ -34,7 +34,7 @@ locals {
   delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
   country     = local.input.country == null ? "" : local.input.country
-  environment = local.input.environment == null ? "" : local.input.environment
+  stage       = local.input.stage == null ? "" : local.input.stage
   region      = local.input.deployment_region == null ? "" : local.input.deployment_region
   name        = local.input.name == null ? "" : local.input.name
 
@@ -54,11 +54,11 @@ locals {
   ohi_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
   ohi_stack_name  = local.stack_suffix == "" ? "" : join(local.delimiter, compact([local.prefix, local.project, local.stack_suffix]))
 
-  # PREFIX environment segment: <country><environment>, or <country>np when non_prd.
-  environment_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.environment}"
+  # PREFIX stage segment: <country><stage>, or <country>np when non_prd.
+  stage_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.stage}"
 
-  # PREFIX = <environment_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
-  prefix = join(local.delimiter, compact([local.environment_segment, local.region]))
+  # PREFIX = <stage_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
+  prefix = join(local.delimiter, compact([local.stage_segment, local.region]))
 
   # id joins the non-empty segments with the delimiter, in order: <PREFIX>,
   # <name>, then <attributes...>. Following cloudposse null-label, `attributes`
@@ -92,7 +92,7 @@ locals {
   output_context = {
     enabled           = local.enabled
     country           = local.input.country
-    environment       = local.input.environment
+    stage             = local.input.stage
     deployment_region = local.input.deployment_region
     project           = local.input.project
     application       = local.input.application

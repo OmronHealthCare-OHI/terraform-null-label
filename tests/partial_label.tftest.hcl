@@ -5,7 +5,7 @@ run "org_level_partial" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = "mobile"
@@ -48,7 +48,7 @@ run "only_project" {
   }
   assert {
     condition     = length(output.tags) == 1
-    error_message = "only ohi:project should be emitted (no environment, no Name), got ${length(output.tags)} tags"
+    error_message = "only ohi:project should be emitted (no stage, no Name), got ${length(output.tags)} tags"
   }
 }
 
@@ -58,7 +58,7 @@ run "disabled" {
   variables {
     enabled           = false
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     name              = "vlt-mobile-api"
