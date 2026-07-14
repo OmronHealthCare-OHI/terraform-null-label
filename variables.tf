@@ -11,7 +11,7 @@ variable "context" {
   type = object({
     enabled           = optional(bool, true)
     country           = optional(string, null)
-    stage       = optional(string, null)
+    stage             = optional(string, null)
     deployment_region = optional(string, null)
     project           = optional(string, null)
     application       = optional(string, null)

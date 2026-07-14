@@ -21,7 +21,7 @@ repos:
       - id: terraform_checkov
         files: \.tf$
         args:
-          - --args=--config-file ./.checkov-config.yml
+          - --args=--config-file __GIT_WORKING_DIR__/.checkov-config.yml
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.34.0
     hooks:

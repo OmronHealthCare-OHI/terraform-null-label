@@ -7,7 +7,7 @@ module "label" {
   source = "../../"
 
   country           = "us"
-  stage       = "stg"
+  stage             = "stg"
   deployment_region = "usw2"
 
   project      = "vlt"

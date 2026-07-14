@@ -33,10 +33,10 @@ locals {
   prefix_enabled = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
   delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
-  country     = local.input.country == null ? "" : local.input.country
-  stage       = local.input.stage == null ? "" : local.input.stage
-  region      = local.input.deployment_region == null ? "" : local.input.deployment_region
-  name        = local.input.name == null ? "" : local.input.name
+  country = local.input.country == null ? "" : local.input.country
+  stage   = local.input.stage == null ? "" : local.input.stage
+  region  = local.input.deployment_region == null ? "" : local.input.deployment_region
+  name    = local.input.name == null ? "" : local.input.name
 
   # Tag hierarchy segments (null -> "").
   project      = local.input.project == null ? "" : local.input.project

@@ -49,19 +49,19 @@ run "full_label_us_stg" {
   }
 }
 
-run "eu_beta_region" {
+run "eu_stg_region" {
   command = plan
 
   variables {
     country           = "eu"
-    stage       = "beta"
+    stage       = "stg"
     deployment_region = "euw1"
     name              = "vlt-mobile-api"
   }
 
   assert {
-    condition     = output.id == "eubeta-euw1-vlt-mobile-api"
-    error_message = "id for eu/beta/euw1 mismatch, got ${output.id}"
+    condition     = output.id == "eustg-euw1-vlt-mobile-api"
+    error_message = "id for eu/stg/euw1 mismatch, got ${output.id}"
   }
 }
 
