@@ -16,7 +16,7 @@ jobs:
       pull-requests: write # to approve the PR
       contents: read # for actions/checkout
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: hmarr/auto-approve-action@v4
         with:
           review-message: "Safe Change is automatically approved."

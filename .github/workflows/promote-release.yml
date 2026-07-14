@@ -18,7 +18,7 @@ jobs:
       contents: write # to push the moving major/minor/latest tags
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
           ref: ${{ inputs.ref }}
