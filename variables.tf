@@ -12,6 +12,7 @@ variable "context" {
     enabled           = optional(bool, true)
     country           = optional(string, null)
     stage             = optional(string, null)
+    aws_region        = optional(string, null)
     deployment_region = optional(string, null)
     project           = optional(string, null)
     application       = optional(string, null)
@@ -53,8 +54,19 @@ variable "stage" {
   }
 }
 
+variable "aws_region" {
+  description = "AWS region code, e.g. us-west-2, eu-west-1, ap-northeast-1. When deployment_region is not set, the PREFIX region segment is derived from this value."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.aws_region == null || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
+    error_message = "The aws_region must be a valid AWS region code, e.g. us-west-2, eu-central-1, ap-northeast-1."
+  }
+}
+
 variable "deployment_region" {
-  description = "Deployment region short code, e.g. usw2, euw1, apne1."
+  description = "Deployment region short code, e.g. usw2, euw1, apne1. Overwrites the AWS region code for the PREFIX segment. When null, it is derived from aws_region."
   type        = string
   default     = null
 }

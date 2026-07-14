@@ -12,6 +12,7 @@ locals {
     enabled           = var.enabled == null ? var.context.enabled : var.enabled
     country           = var.country == null ? var.context.country : var.country
     stage             = var.stage == null ? var.context.stage : var.stage
+    aws_region        = var.aws_region == null ? var.context.aws_region : var.aws_region
     deployment_region = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
     project           = var.project == null ? var.context.project : var.project
     application       = var.application == null ? var.context.application : var.application
@@ -33,9 +34,16 @@ locals {
   prefix_enabled = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
   delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
+  # deployment_region derived from aws_region when not set explicitly: split the
+  # region on "-" and join <part0><first-letter-of-part1><part2>, so
+  # us-west-2 -> usw2, eu-central-1 -> euc1, ap-northeast-1 -> apn1.
+  aws_region_parts          = local.input.aws_region == null ? [] : split("-", local.input.aws_region)
+  derived_deployment_region = local.input.aws_region == null ? null : "${local.aws_region_parts[0]}${substr(local.aws_region_parts[1], 0, 1)}${local.aws_region_parts[2]}"
+  deployment_region         = local.input.deployment_region == null ? local.derived_deployment_region : local.input.deployment_region
+
   country = local.input.country == null ? "" : local.input.country
   stage   = local.input.stage == null ? "" : local.input.stage
-  region  = local.input.deployment_region == null ? "" : local.input.deployment_region
+  region  = local.deployment_region == null ? "" : local.deployment_region
   name    = local.input.name == null ? "" : local.input.name
 
   # Tag hierarchy segments (null -> "").
@@ -93,6 +101,7 @@ locals {
     enabled           = local.enabled
     country           = local.input.country
     stage             = local.input.stage
+    aws_region        = local.input.aws_region
     deployment_region = local.input.deployment_region
     project           = local.input.project
     application       = local.input.application

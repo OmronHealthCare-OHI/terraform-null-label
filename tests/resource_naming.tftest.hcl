@@ -65,6 +65,70 @@ run "eu_stg_region" {
   }
 }
 
+run "deployment_region_derived_from_aws_region" {
+  command = plan
+
+  # deployment_region is unset, so it is derived from aws_region:
+  # us-west-2 -> usw2 (<part0><first-letter-of-part1><part2>).
+  variables {
+    country     = "us"
+    stage       = "stg"
+    aws_region  = "us-west-2"
+    name        = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "usstg-usw2"
+    error_message = "aws_region us-west-2 should derive deployment_region usw2, got prefix ${output.prefix}"
+  }
+}
+
+run "deployment_region_derived_multiletter" {
+  command = plan
+
+  # eu-central-1 -> euc1, ap-northeast-1 -> apn1.
+  variables {
+    country     = "eu"
+    stage       = "stg"
+    aws_region  = "eu-central-1"
+    name        = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "eustg-euc1"
+    error_message = "aws_region eu-central-1 should derive deployment_region euc1, got prefix ${output.prefix}"
+  }
+}
+
+run "explicit_deployment_region_overrides_aws_region" {
+  command = plan
+
+  # An explicit deployment_region wins over the value derived from aws_region.
+  variables {
+    country           = "us"
+    stage             = "stg"
+    aws_region        = "us-west-2"
+    deployment_region = "use1"
+    name              = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "usstg-use1"
+    error_message = "explicit deployment_region should override the aws_region derivation, got ${output.prefix}"
+  }
+}
+
+run "invalid_aws_region_rejected" {
+  command = plan
+
+  variables {
+    aws_region = "notaregion"
+    name       = "vlt-mobile-api"
+  }
+
+  expect_failures = [var.aws_region]
+}
+
 run "non_prd_naming" {
   command = plan
 
