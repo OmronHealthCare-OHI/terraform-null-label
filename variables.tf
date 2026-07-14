@@ -100,7 +100,7 @@ variable "name" {
 }
 
 variable "attributes" {
-  description = "Ordered list of extra attributes appended to the id after the name. Merged onto any inherited from context."
+  description = "Ordered list of extra attributes appended to the id. Following CloudPosse null-label, attributes is an independent segment emitted whenever present — it can appear even without a name (e.g. <PREFIX>-<attr>). Merged onto any inherited from context."
   type        = list(string)
   default     = null
 }

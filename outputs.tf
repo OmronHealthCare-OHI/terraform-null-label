@@ -1,5 +1,5 @@
 output "id" {
-  description = "The generated resource id: <PREFIX>-<name>[-<attributes>] (empty when enabled = false)."
+  description = "The generated id: the non-empty segments joined by the delimiter — <PREFIX>, <name>, then <attributes...>. The prefix is omitted when prefix_enabled = false, and attributes may appear without a name (CloudPosse null-label parity). Empty when enabled = false."
   value       = local.id
 }
 
