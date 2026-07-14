@@ -18,7 +18,7 @@ jobs:
       contents: write # to push the moving major/minor/latest tags
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
           ref: ${{ inputs.ref }}
@@ -29,7 +29,7 @@ jobs:
           git fetch --prune --unshallow --tags
       - name: Generate tags
         id: tags
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         if: inputs.type == 'latest'
         with:
           script: |
