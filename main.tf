@@ -97,13 +97,13 @@ locals {
   # PREFIX = <stage_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
   prefix = join(local.delimiter, compact([local.stage_segment, local.region]))
 
-  # id joins the non-empty segments with the delimiter, in order: <PREFIX>,
-  # <name>, then <attributes...>. Following cloudposse null-label, `attributes`
-  # is an independent segment emitted whenever present — compact() drops an
-  # empty name, so attributes can appear without a name (e.g. `<PREFIX>-<attr>`
-  # when a caller sets attributes but no name/context). prefix is omitted when
-  # prefix_enabled = false.
-  id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
+  # id composes the inherited hierarchy in front of the leaf name so `name` stays
+  # short: <PREFIX>-<project>-<application>-<name>-<attributes...>. `module` is
+  # intentionally excluded — it lives in the ohi:module tag, not the id. compact()
+  # drops empty segments, so a nameless label still yields <PREFIX>-<hierarchy>,
+  # and attributes can appear without a name (CloudPosse null-label parity). The
+  # prefix is omitted when prefix_enabled = false.
+  id_parts = local.prefix_enabled ? concat([local.prefix, local.project, local.application, local.name], local.input.attributes) : concat([local.project, local.application, local.name], local.input.attributes)
   id_full  = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
   # id truncation (CloudPosse null-label parity): when id_length_limit is set

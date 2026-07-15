@@ -124,7 +124,7 @@ variable "owner" {
 # --- Name generation ---
 
 variable "name" {
-  description = "The resource name appended after the PREFIX to form the id (e.g. vlt-mobile-api)."
+  description = "The leaf resource name. The id composes the inherited hierarchy in front of it — <PREFIX>-<project>-<application>-<name>-<attributes...> — so keep it short (e.g. project=vlt, application=mobile, name=\"api\" -> usstg-usw2-vlt-mobile-api). The project/application segments come from those inputs, not from name."
   type        = string
   default     = null
 }

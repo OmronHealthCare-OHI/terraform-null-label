@@ -12,7 +12,7 @@ run "full_label_us_stg" {
     module            = "be"
     stack_suffix      = "be-serverless-stack"
     owner             = "vlt-mobile-circle"
-    name              = "vlt-mobile-api"
+    name              = "api"
     attributes        = ["v1"]
   }
 
@@ -22,7 +22,7 @@ run "full_label_us_stg" {
   }
   assert {
     condition     = output.id == "usstg-usw2-vlt-mobile-api-v1"
-    error_message = "id should be <PREFIX>-<name>-<attributes>, got ${output.id}"
+    error_message = "id should be <PREFIX>-<project>-<application>-<name>-<attributes>, got ${output.id}"
   }
   assert {
     condition     = output.tags["ohi:project"] == "vlt"
@@ -61,7 +61,9 @@ run "eu_stg_region" {
     country           = "eu"
     stage       = "stg"
     deployment_region = "euw1"
-    name              = "vlt-mobile-api"
+    project           = "vlt"
+    application       = "mobile"
+    name              = "api"
   }
 
   assert {
@@ -142,7 +144,8 @@ run "non_prd_naming" {
     stage       = "stg"
     deployment_region = "usw2"
     non_prd           = true
-    name              = "vlt-shared"
+    project           = "vlt"
+    name              = "shared"
   }
 
   assert {
@@ -167,7 +170,8 @@ run "prefix_suppressed" {
     stage       = "stg"
     deployment_region = "usw2"
     prefix_enabled    = false
-    name              = "vlt-service-secrets"
+    project           = "vlt"
+    name              = "service-secrets"
   }
 
   assert {
@@ -184,7 +188,8 @@ run "bare_tag_prefix" {
     stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
-    name              = "vlt-mobile-api"
+    application       = "mobile"
+    name              = "api"
     tag_prefix        = ""
   }
 

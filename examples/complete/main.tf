@@ -21,22 +21,24 @@ module "label" {
   }
 }
 
-# Child label: inherits the root context, only sets a resource name + attribute.
+# Child label: inherits the root context (project/application), sets only the
+# leaf name + attribute. id composes the hierarchy -> usstg-usw2-vlt-mobile-api-v1.
 module "api_label" {
   source = "../../"
 
   context    = module.label.context
-  name       = "vlt-mobile-api"
+  name       = "api"
   attributes = ["v1"]
 }
 
-# Non-prod shared resource: same context, but non_prd swaps the stage segment.
+# Non-prod shared resource: same context, but non_prd swaps the stage
+# segment. id -> usnp-usw2-vlt-mobile-shared.
 module "shared_nonprd_label" {
   source = "../../"
 
   context = module.label.context
   non_prd = true
-  name    = "vlt-shared"
+  name    = "shared"
 }
 
 # Unprefixed tag keys: tag_prefix = "" yields project/application/… instead of ohi:*.
@@ -45,15 +47,15 @@ module "bare_label" {
 
   context    = module.label.context
   tag_prefix = ""
-  name       = "vlt-mobile-api"
+  name       = "api"
 }
 
-# Length-limited id: a long name is truncated to 24 chars with a trailing hash.
+# Length-limited id: a long composed id is truncated to 24 chars with a trailing hash.
 module "truncated_label" {
   source = "../../"
 
   context         = module.label.context
-  name            = "vlt-mobile-api-with-a-very-long-name"
+  name            = "api-with-a-very-long-leaf-name"
   id_length_limit = 24
 }
 

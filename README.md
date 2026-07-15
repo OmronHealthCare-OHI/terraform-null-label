@@ -9,9 +9,11 @@ what they need.
 
 ## Features
 
-- **Deterministic id** — `<PREFIX>-<name>-<attributes...>`, where
-  `PREFIX = <country><environment>-<deployment_region>` (e.g. `usstg-usw2`, or
-  `usnp-usw2` when `non_prd = true`).
+- **Deterministic id** — `<PREFIX>-<project>-<application>-<name>-<attributes...>`,
+  where `PREFIX = <country><environment>-<deployment_region>` (e.g. `usstg-usw2`,
+  or `usnp-usw2` when `non_prd = true`). The `project`/`application` hierarchy is
+  composed in front of the leaf `name`, so `name` stays short; `module` is not
+  part of the id (it lives in the `ohi:module` tag).
 - **OMRON `ohi:*` tag hierarchy** — `ohi:project`, `ohi:application`,
   `ohi:module`, `ohi:stack-name`, `ohi:environment`, plus the AWS `Name` tag.
   Empty segments are dropped; the tag-key prefix is configurable via
@@ -62,12 +64,13 @@ module "label" {
   }
 }
 
-# Child label: inherits the root context, sets only its own name + attribute.
+# Child label: inherits the root context (project/application), sets only its
+# short leaf name + attribute. The id composes the inherited hierarchy.
 module "api_label" {
   source = "path/to/null-label"
 
   context    = module.label.context
-  name       = "vlt-mobile-api" # -> id = usstg-usw2-vlt-mobile-api-v1
+  name       = "api" # -> id = usstg-usw2-vlt-mobile-api-v1
   attributes = ["v1"]
 }
 ```
@@ -110,7 +113,7 @@ No resources.
 | <a name="input_max_tag_key_length"></a> [max\_tag\_key\_length](#input\_max\_tag\_key\_length) | Maximum tag key length in Unicode characters. Defaults to the AWS ceiling of 128; lower it for services with tighter restrictions. Inherited via context. Keys longer than this raise an error. | `number` | `null` | no |
 | <a name="input_max_tag_value_length"></a> [max\_tag\_value\_length](#input\_max\_tag\_value\_length) | Maximum tag value length in Unicode characters. Defaults to the AWS ceiling of 256; lower it for services with tighter restrictions. Inherited via context. Values longer than this are truncated to (limit - 5) characters plus a 5-char hash. | `number` | `null` | no |
 | <a name="input_module"></a> [module](#input\_module) | Module segment appended to form ohi:module (e.g. "be" -> vlt-mobile-be, "infra" -> vlt-infra). | `string` | `null` | no |
-| <a name="input_name"></a> [name](#input\_name) | The resource name appended after the PREFIX to form the id (e.g. vlt-mobile-api). | `string` | `null` | no |
+| <a name="input_name"></a> [name](#input\_name) | The leaf resource name. The id composes the inherited hierarchy in front of it — <PREFIX>-<project>-<application>-<name>-<attributes...> — so keep it short (e.g. project=vlt, application=mobile, name="api" -> usstg-usw2-vlt-mobile-api). The project/application segments come from those inputs, not from name. | `string` | `null` | no |
 | <a name="input_non_prd"></a> [non\_prd](#input\_non\_prd) | When true, the environment segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod environment. | `bool` | `null` | no |
 | <a name="input_prefix_enabled"></a> [prefix\_enabled](#input\_prefix\_enabled) | When true (default) the generated id is prefixed with the PREFIX. Set to false for resources that must not carry the prefix. | `bool` | `null` | no |
 | <a name="input_project"></a> [project](#input\_project) | Top of the tag hierarchy and the leading segment of every ohi:* value, e.g. vlt, common. | `string` | `null` | no |
@@ -124,7 +127,7 @@ No resources.
 |------|-------------|
 | <a name="output_context"></a> [context](#output\_context) | The label context to pass to child label modules. |
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether this label is enabled. |
-| <a name="output_id"></a> [id](#output\_id) | The generated id: the non-empty segments joined by the delimiter — <PREFIX>, <name>, then <attributes...>. The prefix is omitted when prefix\_enabled = false, and attributes may appear without a name (CloudPosse null-label parity). Truncated (with a trailing hash) when it exceeds id\_length\_limit. Empty when enabled = false. |
+| <a name="output_id"></a> [id](#output\_id) | The generated id: the non-empty segments joined by the delimiter — <PREFIX>, <project>, <application>, <name>, then <attributes...>. module is not part of the id (it lives in the ohi:module tag). The prefix is omitted when prefix\_enabled = false. Truncated (with a trailing hash) when it exceeds id\_length\_limit. Empty when enabled = false. |
 | <a name="output_id_full"></a> [id\_full](#output\_id\_full) | The untruncated id, before any id\_length\_limit is applied. Equals id when id\_length\_limit is 0 (unlimited) or the id already fits. |
 | <a name="output_name"></a> [name](#output\_name) | The resolved name segment (the `name` input, inherited via context). Use `id` for the full generated identifier. |
 | <a name="output_prefix"></a> [prefix](#output\_prefix) | The computed PREFIX: <country><environment>-<deployment\_region> (or <country>np-<region> when non\_prd). |

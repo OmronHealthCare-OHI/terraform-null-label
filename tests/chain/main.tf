@@ -22,13 +22,13 @@ module "org" {
   }
 }
 
-# Workload sub-label: inherits the org context, adds module segment + name.
+# Workload sub-label: inherits the org context, adds module segment + leaf name.
 module "workload" {
   source = "../../"
 
   context = module.org.context
   module  = "be"
-  name    = "vlt-mobile-api"
+  name    = "api" # id composes the inherited hierarchy -> usstg-usw2-vlt-mobile-api
 }
 
 # Resource sub-label: extends the workload context with an attribute only.

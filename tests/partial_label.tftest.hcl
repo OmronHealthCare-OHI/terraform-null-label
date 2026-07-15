@@ -13,8 +13,8 @@ run "org_level_partial" {
   }
 
   assert {
-    condition     = output.id == "usstg-usw2"
-    error_message = "a partial label with no name should be just the prefix, got ${output.id}"
+    condition     = output.id == "usstg-usw2-vlt-mobile"
+    error_message = "a nameless label composes the hierarchy: <PREFIX>-<project>-<application>, got ${output.id}"
   }
   assert {
     condition     = output.tags["ohi:project"] == "vlt" && output.tags["ohi:application"] == "vlt-mobile"
@@ -43,16 +43,20 @@ run "only_project" {
   }
 
   assert {
-    condition     = output.id == ""
-    error_message = "with no prefix parts and no name, id should be empty, got ${output.id}"
+    condition     = output.id == "vlt"
+    error_message = "with no prefix parts and no name, the id is just the hierarchy (vlt), got ${output.id}"
   }
   assert {
     condition     = output.tags["ohi:project"] == "vlt"
     error_message = "ohi:project should be present"
   }
   assert {
-    condition     = length(output.tags) == 1
-    error_message = "only ohi:project should be emitted (no stage, no Name), got ${length(output.tags)} tags"
+    condition     = output.tags["Name"] == "vlt"
+    error_message = "Name should equal the id (vlt)"
+  }
+  assert {
+    condition     = length(output.tags) == 2
+    error_message = "ohi:project + Name should be emitted (no stage), got ${length(output.tags)} tags"
   }
 }
 
