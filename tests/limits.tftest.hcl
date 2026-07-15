@@ -9,7 +9,7 @@ run "id_truncated_to_limit" {
   # 14 chars are kept ("usstg-usw2-vlt"), then "-" + a 5-char hash -> 20 chars.
   variables {
     country           = "us"
-    environment       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     name              = "vlt-mobile-api-with-a-very-long-name-segment"
     id_length_limit   = 20
@@ -50,7 +50,7 @@ run "id_not_truncated_when_within_limit" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     name              = "api"
     id_length_limit   = 100
@@ -68,7 +68,7 @@ run "id_unlimited_by_default" {
   # id_length_limit defaults to 0 (unlimited): no truncation regardless of length.
   variables {
     country           = "us"
-    environment       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     name              = "vlt-mobile-api-with-a-very-long-name-segment"
   }
@@ -222,13 +222,15 @@ run "reserved_aws_prefix_user_key_rejected" {
 run "reserved_aws_tag_prefix_rejected" {
   command = plan
 
-  # tag_prefix that would produce aws:* keys is rejected at the variable.
+  # A tag_prefix that slips past the variable check but still composes aws:*
+  # keys (here "aws:" + ":" delimiter -> aws::project) is caught by the output
+  # precondition that guards the final key set.
   variables {
     project    = "vlt"
     tag_prefix = "aws:"
   }
 
-  expect_failures = [var.tag_prefix]
+  expect_failures = [output.tags]
 }
 
 run "allowed_special_chars_ok" {
@@ -301,7 +303,7 @@ run "name_tag_capped_at_value_limit_not_id_limit" {
   # subject only to the (here tightened) tag-value limit.
   variables {
     country              = "us"
-    environment          = "stg"
+    stage                = "stg"
     deployment_region    = "usw2"
     name                 = "vlt-mobile-api-with-a-very-long-name-segment"
     id_length_limit      = 12
@@ -347,7 +349,7 @@ run "multichar_delimiter_small_limit_preserves_hash" {
   # are dropped but the 5-char hash is preserved and the id stays non-empty.
   variables {
     country           = "us"
-    environment       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     name              = "vlt-mobile-api-with-a-very-long-name-segment"
     delimiter         = "__"

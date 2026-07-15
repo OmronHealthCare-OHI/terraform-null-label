@@ -5,12 +5,11 @@ run "full_label_us_stg" {
 
   variables {
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = "mobile"
     module            = "be"
-    stack_suffix      = "be-serverless-stack"
     owner             = "vlt-mobile-circle"
     name              = "api"
     attributes        = ["v1"]
@@ -37,8 +36,8 @@ run "full_label_us_stg" {
     error_message = "ohi:module tag mismatch"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-be-serverless-stack"
-    error_message = "ohi:stack-name tag mismatch"
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile-be"
+    error_message = "ohi:stack-name should derive to <PREFIX>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
   }
   assert {
     condition     = output.tags["ohi:environment"] == "usstg-usw2"
@@ -59,7 +58,7 @@ run "eu_stg_region" {
 
   variables {
     country           = "eu"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "euw1"
     project           = "vlt"
     application       = "mobile"
@@ -78,10 +77,10 @@ run "deployment_region_derived_from_aws_region" {
   # deployment_region is unset, so it is derived from aws_region:
   # us-west-2 -> usw2 (<part0><first-letter-of-part1><part2>).
   variables {
-    country     = "us"
-    stage       = "stg"
-    aws_region  = "us-west-2"
-    name        = "vlt-mobile-api"
+    country    = "us"
+    stage      = "stg"
+    aws_region = "us-west-2"
+    name       = "vlt-mobile-api"
   }
 
   assert {
@@ -95,10 +94,10 @@ run "deployment_region_derived_multiletter" {
 
   # eu-central-1 -> euc1, ap-northeast-1 -> apn1.
   variables {
-    country     = "eu"
-    stage       = "stg"
-    aws_region  = "eu-central-1"
-    name        = "vlt-mobile-api"
+    country    = "eu"
+    stage      = "stg"
+    aws_region = "eu-central-1"
+    name       = "vlt-mobile-api"
   }
 
   assert {
@@ -141,7 +140,7 @@ run "non_prd_naming" {
 
   variables {
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     non_prd           = true
     project           = "vlt"
@@ -167,7 +166,7 @@ run "prefix_suppressed" {
 
   variables {
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     prefix_enabled    = false
     project           = "vlt"
@@ -185,7 +184,7 @@ run "bare_tag_prefix" {
 
   variables {
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = "mobile"
@@ -214,12 +213,11 @@ run "infra_set_composition" {
   # segment is empty; module composes to <project>-infra.
   variables {
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = ""
     module            = "infra"
-    stack_suffix      = "tf-initial-setup-pipeline"
   }
 
   assert {
@@ -231,8 +229,8 @@ run "infra_set_composition" {
     error_message = "module should compose to <project>-infra, got ${output.tags["ohi:module"]}"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-tf-initial-setup-pipeline"
-    error_message = "ohi:stack-name should be <PREFIX>-<project>-<stack_suffix>"
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-infra"
+    error_message = "ohi:stack-name should derive to <PREFIX>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
   }
 }
 
@@ -254,5 +252,26 @@ run "report_normalizes_under_composition" {
   assert {
     condition     = output.tags["ohi:module"] == "vlt-mobile-report"
     error_message = "module composes under application (normalizes the legacy vlt-report), got ${output.tags["ohi:module"]}"
+  }
+}
+
+run "stack_suffix_override" {
+  command = plan
+
+  # The optional escape hatch pins ohi:stack-name to <PREFIX>-<stack_suffix>,
+  # overriding the derived <PREFIX>-<ohi:module>.
+  variables {
+    country           = "us"
+    stage             = "stg"
+    deployment_region = "usw2"
+    project           = "vlt"
+    application       = "mobile"
+    module            = "be"
+    stack_suffix      = "legacy-be-stack"
+  }
+
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-legacy-be-stack"
+    error_message = "stack_suffix should override ohi:stack-name to <PREFIX>-<stack_suffix>, got ${output.tags["ohi:stack-name"]}"
   }
 }

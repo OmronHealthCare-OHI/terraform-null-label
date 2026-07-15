@@ -16,8 +16,10 @@ what they need.
   part of the id (it lives in the `ohi:module` tag).
 - **OMRON `ohi:*` tag hierarchy** — `ohi:project`, `ohi:application`,
   `ohi:module`, `ohi:stack-name`, `ohi:environment`, plus the AWS `Name` tag.
-  Empty segments are dropped; the tag-key prefix is configurable via
-  `tag_prefix` (set `""` for unprefixed keys).
+  `ohi:stack-name` is derived as `<PREFIX>-<deepest hierarchy>` (module, else
+  application, else project), so all resources in a stack share it — it's the
+  environment-specific instance of `ohi:module`. Empty segments are dropped; the
+  tag-key prefix is configurable via `tag_prefix` (set `""` for unprefixed keys).
 - **Context inheritance** — every field is optional; a parent sets what it knows
   and passes `context` to children.
 - **`id_length_limit`** — cap the `id` (for length-restricted resource
@@ -54,10 +56,9 @@ module "label" {
   environment       = "stg"
   deployment_region = "usw2"
 
-  project      = "vlt"
-  application  = "mobile"              # -> ohi:application = vlt-mobile
-  module       = "be"                  # -> ohi:module      = vlt-mobile-be
-  stack_suffix = "be-serverless-stack" # -> ohi:stack-name  = usstg-usw2-vlt-be-serverless-stack
+  project     = "vlt"
+  application = "mobile" # -> ohi:application = vlt-mobile
+  module      = "be"     # -> ohi:module = vlt-mobile-be, ohi:stack-name = usstg-usw2-vlt-mobile-be
 
   tags = {
     Team = "voltron"
@@ -117,7 +118,7 @@ No resources.
 | <a name="input_non_prd"></a> [non\_prd](#input\_non\_prd) | When true, the environment segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod environment. | `bool` | `null` | no |
 | <a name="input_prefix_enabled"></a> [prefix\_enabled](#input\_prefix\_enabled) | When true (default) the generated id is prefixed with the PREFIX. Set to false for resources that must not carry the prefix. | `bool` | `null` | no |
 | <a name="input_project"></a> [project](#input\_project) | Top of the tag hierarchy and the leading segment of every ohi:* value, e.g. vlt, common. | `string` | `null` | no |
-| <a name="input_stack_suffix"></a> [stack\_suffix](#input\_stack\_suffix) | Suffix appended to <PREFIX>-<project> to form ohi:stack-name (e.g. "be-serverless-stack" -> usstg-usw2-vlt-be-serverless-stack). | `string` | `null` | no |
+| <a name="input_stack_suffix"></a> [stack\_suffix](#input\_stack\_suffix) | OPTIONAL override for ohi:stack-name. By default ohi:stack-name is derived as <PREFIX>-<deepest hierarchy> (module, else application, else project), so this is NOT needed for normal use. Set it only to pin an exact value <PREFIX>-<stack\_suffix> when something external depends on a specific stack name; it can be removed from the module if nobody uses it. | `string` | `null` | no |
 | <a name="input_tag_prefix"></a> [tag\_prefix](#input\_tag\_prefix) | Prefix prepended to the generated tag keys, e.g. "ohi:" produces ohi:project. Set to "" for unprefixed keys (project, application, …). The Name tag is never prefixed. Must not begin with the reserved "aws:" prefix. | `string` | `null` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be 1-128 and values at most 256 Unicode characters (over-long values are truncated with a hash). Keys and values may only contain letters, numbers, spaces and \_ . : / = + - @. | `map(string)` | `{}` | no |
 

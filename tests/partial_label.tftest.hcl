@@ -25,8 +25,12 @@ run "org_level_partial" {
     error_message = "ohi:environment should be the prefix"
   }
   assert {
-    condition     = !contains(keys(output.tags), "ohi:module") && !contains(keys(output.tags), "ohi:stack-name")
-    error_message = "unset hierarchy tags should be omitted"
+    condition     = !contains(keys(output.tags), "ohi:module")
+    error_message = "unset module tag should be omitted"
+  }
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile"
+    error_message = "ohi:stack-name derives from the deepest set hierarchy (here application), got ${output.tags["ohi:stack-name"]}"
   }
   assert {
     condition     = !contains(keys(output.tags), "ohi:owner")
@@ -55,8 +59,12 @@ run "only_project" {
     error_message = "Name should equal the id (vlt)"
   }
   assert {
-    condition     = length(output.tags) == 2
-    error_message = "ohi:project + Name should be emitted (no stage), got ${length(output.tags)} tags"
+    condition     = output.tags["ohi:stack-name"] == "vlt"
+    error_message = "ohi:stack-name derives from the deepest hierarchy (project), got ${output.tags["ohi:stack-name"]}"
+  }
+  assert {
+    condition     = length(output.tags) == 3
+    error_message = "ohi:project + Name + ohi:stack-name should be emitted (no stage), got ${length(output.tags)} tags"
   }
 }
 
@@ -66,7 +74,7 @@ run "disabled" {
   variables {
     enabled           = false
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     name              = "vlt-mobile-api"

@@ -82,14 +82,21 @@ locals {
   owner        = local.input.owner == null ? "" : local.input.owner
 
   # ohi:* hierarchy composes by nesting: project -> project-application ->
-  # project-application-module; ohi:stack-name = <PREFIX>-<project>-<stack_suffix>.
-  # application is emitted once there is an application or module segment (it
-  # defaults to the project value, as the infra set does); module and stack-name
-  # are only emitted when their own segment is set.
+  # project-application-module. application is emitted once there is an
+  # application or module segment (it defaults to the project value, as the infra
+  # set does); module is only emitted when its own segment is set.
   ohi_project     = local.project
   ohi_application = (local.application == "" && local.module == "") ? "" : join(local.delimiter, compact([local.project, local.application]))
   ohi_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
-  ohi_stack_name  = local.stack_suffix == "" ? "" : join(local.delimiter, compact([local.prefix, local.project, local.stack_suffix]))
+
+  # ohi:stack-name identifies the concrete deployed stack: <PREFIX>-<deepest set
+  # hierarchy> (module, else application, else project) — e.g. usstg-usw2-vlt-mobile-be.
+  # stack_suffix is an OPTIONAL escape hatch to pin an exact value
+  # (<PREFIX>-<stack_suffix>) when something external needs it; it is NOT required
+  # for normal use and can be dropped from the module if nobody relies on it.
+  stack_hierarchy = local.module != "" ? local.ohi_module : (local.application != "" ? local.ohi_application : local.ohi_project)
+  stack_identity  = local.stack_suffix != "" ? local.stack_suffix : local.stack_hierarchy
+  ohi_stack_name  = local.stack_identity == "" ? "" : join(local.delimiter, compact([local.prefix, local.stack_identity]))
 
   # PREFIX stage segment: <country><stage>, or <country>np when non_prd.
   stage_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.stage}"

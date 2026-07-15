@@ -108,7 +108,7 @@ variable "module" {
 }
 
 variable "stack_suffix" {
-  description = "Suffix appended to <PREFIX>-<project> to form ohi:stack-name (e.g. \"be-serverless-stack\" -> usstg-usw2-vlt-be-serverless-stack)."
+  description = "OPTIONAL override for ohi:stack-name. By default ohi:stack-name is derived as <PREFIX>-<deepest hierarchy> (module, else application, else project), so this is NOT needed for normal use. Set it only to pin an exact value <PREFIX>-<stack_suffix> when something external depends on a specific stack name; it can be removed from the module if nobody uses it."
   type        = string
   default     = null
 }
