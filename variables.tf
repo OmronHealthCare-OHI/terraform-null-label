@@ -68,13 +68,13 @@ variable "aws_region" {
 }
 
 variable "deployment_region" {
-  description = "Deployment region short code, e.g. usw2, euw1, apne1. Overwrites the AWS region code for the PREFIX segment. When null, it is derived from aws_region."
+  description = "Deployment region short code, e.g. usw2, euw1, apn1. Overwrites the AWS region code for the PREFIX segment. When null, it is derived from aws_region."
   type        = string
   default     = null
 }
 
 variable "non_prd" {
-  description = "When true, the stage segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod stage."
+  description = "When true, the stage segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage."
   type        = bool
   default     = null
 }
@@ -145,20 +145,29 @@ variable "delimiter" {
 }
 
 variable "tag_prefix" {
-  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). The Name tag is never prefixed."
+  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). null inherits from context (defaults to \"ohi\"). The Name tag is never prefixed."
   type        = string
-  default     = "ohi"
+  default     = null
 
   validation {
-    condition     = lower(var.tag_prefix) != "aws"
+    condition     = var.tag_prefix == null || lower(var.tag_prefix) != "aws"
     error_message = "Do not use AWS: or any upper or lowercase combination of such as a prefix for either keys or values. These are reserved only for AWS use."
+  }
+  validation {
+    condition     = var.tag_prefix == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_prefix))
+    error_message = "The tag_prefix may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
   }
 }
 
 variable "tag_delimiter" {
-  description = "Delimiter between tag key segments. The Name tag is never affected by this setting."
+  description = "Delimiter between tag key segments (e.g. \":\" produces ohi:project). null inherits from context (defaults to \":\"). The Name tag is never affected by this setting."
   type        = string
-  default     = ":"
+  default     = null
+
+  validation {
+    condition     = var.tag_delimiter == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_delimiter))
+    error_message = "The tag_delimiter may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
+  }
 }
 
 variable "tags" {
