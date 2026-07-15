@@ -10,6 +10,8 @@ locals {
     max_tag_value_length = 256
   }
 
+  # AWS tag constraints — see
+  # https://docs.aws.amazon.com/tag-editor/latest/userguide/reference.html
   # AWS caps user-created tags at 50 per resource (AWS-generated tags don't
   # count). The key/value length ceilings default to the AWS maxima (128/256)
   # but are configurable because some services are stricter — resolved below.
@@ -121,7 +123,9 @@ locals {
   tag_prefix    = local.input.tag_prefix == null ? "ohi" : local.input.tag_prefix
   tag_delimiter = local.input.tag_delimiter == null ? ":" : local.input.tag_delimiter
 
-  # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
+  # Required OMRON tags (only emitted when non-empty), plus the AWS Name tag.
+  # Name carries the full id (id_length_limit governs the id output for resource
+  # identifiers; as a tag, Name is bound only by the tag-value limit applied below).
   generated_tags_all = {
     (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.ohi_project
     (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.ohi_application
@@ -129,7 +133,7 @@ locals {
     (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.ohi_stack_name
     (join(local.tag_delimiter, compact([local.tag_prefix, "environment"]))) = local.prefix
     (join(local.tag_delimiter, compact([local.tag_prefix, "owner"])))       = local.owner
-    "Name"                                                                  = local.id
+    "Name"                                                                  = local.id_full
   }
   generated_tags = { for k, v in local.generated_tags_all : k => v if v != null && v != "" }
 
@@ -151,7 +155,9 @@ locals {
   invalid_char_keys    = [for k in local.tag_keys : k if !can(regex(local.tag_allowed_chars_regex, k))]
   reserved_prefix_keys = [for k in local.tag_keys : k if substr(lower(k), 0, 4) == "aws:"]
   invalid_value_keys   = [for k, v in local.tags_raw : k if !can(regex(local.tag_allowed_chars_regex, v))]
-  user_tag_count       = length(local.input.tags)
+  # Count only non-empty user tags: empty-valued entries are dropped and never
+  # emitted, so they must not count toward the 50-tag limit.
+  user_tag_count = length([for k, v in local.input.tags : k if v != null && v != ""])
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.

@@ -32,8 +32,12 @@ run "id_truncated_to_limit" {
     error_message = "id_full should be the untruncated id, got ${output.id_full}"
   }
   assert {
-    condition     = output.tags["Name"] == output.id
-    error_message = "Name tag should equal the truncated id"
+    condition     = output.tags["Name"] == output.id_full
+    error_message = "Name tag carries the full id (bound by the tag limit, not id_length_limit), got ${output.tags["Name"]}"
+  }
+  assert {
+    condition     = output.tags["Name"] != output.id
+    error_message = "Name tag should not be the length-limited id"
   }
   assert {
     condition     = output.context.id_length_limit == 20
@@ -288,4 +292,74 @@ run "max_tag_value_length_out_of_range_rejected" {
   }
 
   expect_failures = [var.max_tag_value_length]
+}
+
+run "name_tag_capped_at_value_limit_not_id_limit" {
+  command = plan
+
+  # id_length_limit shrinks the id output, but the Name tag keeps the full id
+  # subject only to the (here tightened) tag-value limit.
+  variables {
+    country              = "us"
+    environment          = "stg"
+    deployment_region    = "usw2"
+    name                 = "vlt-mobile-api-with-a-very-long-name-segment"
+    id_length_limit      = 12
+    max_tag_value_length = 20
+  }
+
+  assert {
+    condition     = length(output.id) <= 12
+    error_message = "id output should honour id_length_limit (<= 12), got ${length(output.id)}"
+  }
+  assert {
+    condition     = length(output.tags["Name"]) == 20
+    error_message = "Name tag should be capped at the tag-value limit (20), not id_length_limit, got ${length(output.tags["Name"])}"
+  }
+}
+
+run "empty_valued_user_tags_not_counted" {
+  command = plan
+
+  # 51 user tags, but 2 have empty values (dropped) -> 49 emitted, under the cap.
+  variables {
+    project = "vlt"
+    tags = merge(
+      { for i in range(49) : "key-${i}" => "v" },
+      { "empty-a" = "", "empty-b" = "" },
+    )
+  }
+
+  assert {
+    condition     = !contains(keys(output.tags), "empty-a")
+    error_message = "empty-valued tags should be dropped"
+  }
+  assert {
+    condition     = output.tags["key-0"] == "v"
+    error_message = "51 declared tags with 2 empty values (49 emitted) should be allowed"
+  }
+}
+
+run "multichar_delimiter_small_limit_preserves_hash" {
+  command = plan
+
+  # With a 2-char delimiter and the minimum limit, the leading portion/delimiter
+  # are dropped but the 5-char hash is preserved and the id stays non-empty.
+  variables {
+    country           = "us"
+    environment       = "stg"
+    deployment_region = "usw2"
+    name              = "vlt-mobile-api-with-a-very-long-name-segment"
+    delimiter         = "__"
+    id_length_limit   = 6
+  }
+
+  assert {
+    condition     = length(output.id) == 5
+    error_message = "with limit 6, 2-char delimiter and a 5-char hash the id is the bare hash (5 chars), got ${length(output.id)} (${output.id})"
+  }
+  assert {
+    condition     = output.id != "" && output.id == substr(md5(output.id_full), 0, 5)
+    error_message = "the truncated id must be the preserved 5-char hash of id_full, got ${output.id}"
+  }
 }

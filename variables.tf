@@ -174,7 +174,7 @@ variable "tag_delimiter" {
 }
 
 variable "id_length_limit" {
-  description = "Limit the generated id (and the Name tag) to at most this many characters. When the full id is longer, it is truncated and a short md5 hash is appended to keep it unique (CloudPosse null-label parity). Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set. Does not affect the id segments carried in context."
+  description = "Limit the generated id output to at most this many characters. When the full id is longer, the leading characters are kept and a short md5 hash is appended so distinct ids stay unique (CloudPosse null-label parity). The Name tag is unaffected — it carries the full id, bound only by the tag-value limit. Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set; with very small limits or multi-character delimiters the leading portion and/or delimiter may be dropped (the id can be shorter than the limit), but the 5-char hash is always preserved. Does not affect the id segments carried in context."
   type        = number
   default     = null
 
