@@ -1,10 +1,18 @@
 locals {
   defaults = {
-    delimiter      = "-"
-    enabled        = true
-    non_prd        = false
-    prefix_enabled = true
+    delimiter       = "-"
+    enabled         = true
+    non_prd         = false
+    prefix_enabled  = true
+    id_length_limit = 0
+    id_hash_length  = 5
   }
+
+  # AWS tag constraints (Unicode characters): keys <= 128, values <= 256, and at
+  # most 50 user-created tags per resource.
+  max_tag_key_length   = 128
+  max_tag_value_length = 256
+  max_user_tags        = 50
 
   # Explicit variables override the inherited context (null = inherit).
   # attributes and tags are merged (context first, then explicit value).
@@ -25,6 +33,7 @@ locals {
     prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
     tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
     tag_delimiter     = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
+    id_length_limit   = var.id_length_limit == null ? var.context.id_length_limit : var.id_length_limit
     attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
     tags              = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
@@ -42,6 +51,10 @@ locals {
   aws_region_parts          = local.input.aws_region == null ? [] : split("-", local.input.aws_region)
   derived_deployment_region = local.input.aws_region == null ? null : "${local.aws_region_parts[0]}${substr(local.aws_region_parts[1], 0, 1)}${local.aws_region_parts[2]}"
   deployment_region         = local.input.deployment_region == null ? local.derived_deployment_region : local.input.deployment_region
+
+  # 0 = unlimited id length. Coalesce a null (via var or context) to the default.
+  id_length_limit = local.input.id_length_limit == null ? local.defaults.id_length_limit : local.input.id_length_limit
+  id_hash_length  = local.defaults.id_hash_length
 
   country = local.input.country == null ? "" : local.input.country
   stage   = local.input.stage == null ? "" : local.input.stage
@@ -78,7 +91,18 @@ locals {
   # when a caller sets attributes but no name/context). prefix is omitted when
   # prefix_enabled = false.
   id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
-  id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
+  id_full  = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
+
+  # id truncation (CloudPosse null-label parity): when id_length_limit is set
+  # (non-zero) and id_full exceeds it, keep the leading characters (leaving room
+  # for a trailing delimiter + hash) and append a short md5 hash of id_full so
+  # distinct long ids stay distinct.
+  delimiter_length          = length(local.delimiter)
+  id_truncated_length_limit = local.id_length_limit - (local.id_hash_length + local.delimiter_length)
+  id_truncated              = local.id_truncated_length_limit <= 0 ? "" : "${trimsuffix(substr(local.id_full, 0, local.id_truncated_length_limit), local.delimiter)}${local.delimiter}"
+  id_hash                   = substr(md5(local.id_full), 0, local.id_hash_length)
+  id_short                  = substr("${local.id_truncated}${local.id_hash}", 0, local.id_length_limit)
+  id                        = local.id_length_limit != 0 && length(local.id_full) > local.id_length_limit ? local.id_short : local.id_full
 
   # Tag-key prefix + delimiter (e.g. "ohi" + ":" -> "ohi:project"). Coalesce a
   # null (via var or context) to the default so compact() never sees a null.
@@ -100,7 +124,18 @@ locals {
 
   # Merge generated + user tags, then drop any empty-value entries so the module
   # never emits an empty tag value (applies the generated_tags filter to the whole map).
-  tags = local.enabled ? { for k, v in merge(local.generated_tags, local.input.tags) : k => v if v != null && v != "" } : {}
+  tags_raw = local.enabled ? { for k, v in merge(local.generated_tags, local.input.tags) : k => v if v != null && v != "" } : {}
+
+  # Cap tag values at 256 Unicode characters (AWS limit): over-long values are
+  # truncated to (256 - hash) characters plus a short md5 hash of the original,
+  # mirroring the id truncation so distinct long values stay distinct.
+  tags = { for k, v in local.tags_raw : k => length(v) > local.max_tag_value_length ? "${substr(v, 0, local.max_tag_value_length - local.id_hash_length)}${substr(md5(v), 0, local.id_hash_length)}" : v }
+
+  # Tag-constraint validation helpers (surfaced as output preconditions).
+  tag_keys           = keys(local.tags)
+  oversized_tag_keys = [for k in local.tag_keys : k if length(k) > local.max_tag_key_length]
+  has_empty_tag_key  = contains(local.tag_keys, "")
+  user_tag_count     = length(local.input.tags)
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
@@ -122,6 +157,7 @@ locals {
     prefix_enabled    = local.prefix_enabled
     tag_prefix        = local.tag_prefix
     tag_delimiter     = local.tag_delimiter
+    id_length_limit   = local.id_length_limit
     tags              = local.input.tags
   }
 }

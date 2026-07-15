@@ -26,6 +26,7 @@ variable "context" {
     prefix_enabled    = optional(bool, true)
     tag_prefix        = optional(string, "ohi")
     tag_delimiter     = optional(string, ":")
+    id_length_limit   = optional(number, null)
     tags              = optional(map(string), {})
   })
   default = {}
@@ -170,8 +171,19 @@ variable "tag_delimiter" {
   }
 }
 
+variable "id_length_limit" {
+  description = "Limit the generated id (and the Name tag) to at most this many characters. When the full id is longer, it is truncated and a short md5 hash is appended to keep it unique (CloudPosse null-label parity). Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set. Does not affect the id segments carried in context."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.id_length_limit == null || var.id_length_limit == 0 || var.id_length_limit >= 6
+    error_message = "The id_length_limit must be >= 6 when set, or 0 for unlimited length."
+  }
+}
+
 variable "tags" {
-  description = "Additional tags to merge on top of the generated ohi:* and Name tags."
+  description = "Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be 1-128 and values at most 256 Unicode characters (over-long values are truncated with a hash)."
   type        = map(string)
   default     = {}
 }

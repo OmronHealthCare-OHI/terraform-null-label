@@ -48,6 +48,15 @@ module "bare_label" {
   name       = "vlt-mobile-api"
 }
 
+# Length-limited id: a long name is truncated to 24 chars with a trailing hash.
+module "truncated_label" {
+  source = "../../"
+
+  context         = module.label.context
+  name            = "vlt-mobile-api-with-a-very-long-name"
+  id_length_limit = 24
+}
+
 output "root" {
   value = { id = module.label.id, prefix = module.label.prefix, tags = module.label.tags }
 }
@@ -62,4 +71,8 @@ output "shared_nonprd" {
 
 output "bare" {
   value = { id = module.bare_label.id, prefix = module.bare_label.prefix, tags = module.bare_label.tags }
+}
+
+output "truncated" {
+  value = { id = module.truncated_label.id, id_full = module.truncated_label.id_full, tags = module.truncated_label.tags }
 }
