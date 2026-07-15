@@ -18,11 +18,13 @@ locals {
     application       = var.application == null ? var.context.application : var.application
     module            = var.module == null ? var.context.module : var.module
     stack_suffix      = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
+    owner             = var.owner == null ? var.context.owner : var.owner
     name              = var.name == null ? var.context.name : var.name
     non_prd           = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter         = var.delimiter == null ? var.context.delimiter : var.delimiter
     prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
     tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
+    tag_delimiter     = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
     attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
     tags              = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
@@ -51,6 +53,7 @@ locals {
   application  = local.input.application == null ? "" : local.input.application
   module       = local.input.module == null ? "" : local.input.module
   stack_suffix = local.input.stack_suffix == null ? "" : local.input.stack_suffix
+  owner        = local.input.owner == null ? "" : local.input.owner
 
   # ohi:* hierarchy composes by nesting: project -> project-application ->
   # project-application-module; ohi:stack-name = <PREFIX>-<project>-<stack_suffix>.
@@ -77,17 +80,21 @@ locals {
   id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
   id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
-  # Tag-key prefix (e.g. "ohi:"). Empty string yields unprefixed keys. Name is never prefixed.
-  tag_prefix = local.input.tag_prefix == null ? "ohi:" : local.input.tag_prefix
+  # Tag-key prefix + delimiter (e.g. "ohi" + ":" -> "ohi:project"). Coalesce a
+  # null (via var or context) to the default so compact() never sees a null.
+  # An empty tag_prefix drops the prefix segment, yielding unprefixed keys.
+  tag_prefix    = local.input.tag_prefix == null ? "ohi" : local.input.tag_prefix
+  tag_delimiter = local.input.tag_delimiter == null ? ":" : local.input.tag_delimiter
 
   # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
   generated_tags_all = {
-    "${local.tag_prefix}project"     = local.ohi_project
-    "${local.tag_prefix}application" = local.ohi_application
-    "${local.tag_prefix}module"      = local.ohi_module
-    "${local.tag_prefix}stack-name"  = local.ohi_stack_name
-    "${local.tag_prefix}environment" = local.prefix
-    "Name"                           = local.id
+    (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.ohi_project
+    (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.ohi_application
+    (join(local.tag_delimiter, compact([local.tag_prefix, "module"])))      = local.ohi_module
+    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.ohi_stack_name
+    (join(local.tag_delimiter, compact([local.tag_prefix, "environment"]))) = local.prefix
+    (join(local.tag_delimiter, compact([local.tag_prefix, "owner"])))       = local.owner
+    "Name"                                                                  = local.id
   }
   generated_tags = { for k, v in local.generated_tags_all : k => v if v != null && v != "" }
 
@@ -107,12 +114,14 @@ locals {
     application       = local.input.application
     module            = local.input.module
     stack_suffix      = local.input.stack_suffix
+    owner             = local.input.owner
     name              = local.input.name
     attributes        = local.input.attributes
     non_prd           = local.non_prd
     delimiter         = local.delimiter
     prefix_enabled    = local.prefix_enabled
     tag_prefix        = local.tag_prefix
+    tag_delimiter     = local.tag_delimiter
     tags              = local.input.tags
   }
 }

@@ -11,6 +11,7 @@ run "full_label_us_stg" {
     application       = "mobile"
     module            = "be"
     stack_suffix      = "be-serverless-stack"
+    owner             = "vlt-mobile-circle"
     name              = "vlt-mobile-api"
     attributes        = ["v1"]
   }
@@ -42,6 +43,10 @@ run "full_label_us_stg" {
   assert {
     condition     = output.tags["ohi:environment"] == "usstg-usw2"
     error_message = "ohi:environment tag should equal the prefix"
+  }
+  assert {
+    condition     = output.tags["ohi:owner"] == "vlt-mobile-circle"
+    error_message = "ohi:owner tag should equal the owner input"
   }
   assert {
     condition     = output.tags["Name"] == "usstg-usw2-vlt-mobile-api-v1"

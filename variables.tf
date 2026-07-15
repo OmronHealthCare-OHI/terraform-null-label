@@ -18,12 +18,14 @@ variable "context" {
     application       = optional(string, null)
     module            = optional(string, null)
     stack_suffix      = optional(string, null)
+    owner             = optional(string, null)
     name              = optional(string, null)
     attributes        = optional(list(string), [])
     non_prd           = optional(bool, false)
     delimiter         = optional(string, "-")
     prefix_enabled    = optional(bool, true)
-    tag_prefix        = optional(string, "ohi:")
+    tag_prefix        = optional(string, "ohi")
+    tag_delimiter     = optional(string, ":")
     tags              = optional(map(string), {})
   })
   default = {}
@@ -108,6 +110,14 @@ variable "stack_suffix" {
   default     = null
 }
 
+# --- Ownership ---
+
+variable "owner" {
+  description = "The circle that controls the resource. Emitted as the ohi:owner tag (subject to tag_prefix/tag_delimiter). Not part of the id or the ohi:* naming hierarchy."
+  type        = string
+  default     = null
+}
+
 # --- Name generation ---
 
 variable "name" {
@@ -135,9 +145,20 @@ variable "delimiter" {
 }
 
 variable "tag_prefix" {
-  description = "Prefix prepended to the generated tag keys, e.g. \"ohi:\" produces ohi:project. Set to \"\" for unprefixed keys (project, application, …). The Name tag is never prefixed."
+  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). The Name tag is never prefixed."
   type        = string
-  default     = null
+  default     = "ohi"
+
+  validation {
+    condition     = lower(var.tag_prefix) != "aws"
+    error_message = "Do not use AWS: or any upper or lowercase combination of such as a prefix for either keys or values. These are reserved only for AWS use."
+  }
+}
+
+variable "tag_delimiter" {
+  description = "Delimiter between tag key segments. The Name tag is never affected by this setting."
+  type        = string
+  default     = ":"
 }
 
 variable "tags" {

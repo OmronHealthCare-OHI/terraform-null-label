@@ -33,6 +33,10 @@ run "org_to_workload_to_resource" {
     error_message = "workload should inherit the user tag (Team) from context"
   }
   assert {
+    condition     = output.workload_tags["ohi:owner"] == "vlt-mobile-circle"
+    error_message = "workload should inherit ohi:owner from context"
+  }
+  assert {
     condition     = output.workload_tags["Name"] == "usstg-usw2-vlt-mobile-api"
     error_message = "workload Name should be recomputed to its own id"
   }
@@ -45,5 +49,9 @@ run "org_to_workload_to_resource" {
   assert {
     condition     = output.resource_tags["ohi:module"] == "vlt-mobile-be"
     error_message = "resource should inherit ohi:module through the chain"
+  }
+  assert {
+    condition     = output.resource_tags["ohi:owner"] == "vlt-mobile-circle"
+    error_message = "resource should inherit ohi:owner through the chain"
   }
 }

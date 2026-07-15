@@ -28,6 +28,10 @@ run "org_level_partial" {
     condition     = !contains(keys(output.tags), "ohi:module") && !contains(keys(output.tags), "ohi:stack-name")
     error_message = "unset hierarchy tags should be omitted"
   }
+  assert {
+    condition     = !contains(keys(output.tags), "ohi:owner")
+    error_message = "unset owner should be omitted"
+  }
 }
 
 run "only_project" {
