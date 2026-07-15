@@ -174,3 +174,118 @@ run "fifty_user_tags_allowed" {
     error_message = "exactly 50 user tags should be allowed"
   }
 }
+
+run "invalid_tag_key_char_rejected" {
+  command = plan
+
+  variables {
+    project = "vlt"
+    tags = {
+      "bad!key" = "v"
+    }
+  }
+
+  expect_failures = [output.tags]
+}
+
+run "invalid_tag_value_char_rejected" {
+  command = plan
+
+  variables {
+    project = "vlt"
+    tags = {
+      good = "bad*value"
+    }
+  }
+
+  expect_failures = [output.tags]
+}
+
+run "reserved_aws_prefix_user_key_rejected" {
+  command = plan
+
+  # A user-supplied key beginning with the reserved aws: prefix.
+  variables {
+    project = "vlt"
+    tags = {
+      "aws:foo" = "v"
+    }
+  }
+
+  expect_failures = [output.tags]
+}
+
+run "reserved_aws_tag_prefix_rejected" {
+  command = plan
+
+  # tag_prefix that would produce aws:* keys is rejected at the variable.
+  variables {
+    project    = "vlt"
+    tag_prefix = "aws:"
+  }
+
+  expect_failures = [var.tag_prefix]
+}
+
+run "allowed_special_chars_ok" {
+  command = plan
+
+  # Every AWS-permitted special character in a key and value should pass.
+  variables {
+    project = "vlt"
+    tags = {
+      "a_b.c:d/e=f+g-h@i" = "v_1.2:3/4=5+6-7@8 z"
+    }
+  }
+
+  assert {
+    condition     = output.tags["a_b.c:d/e=f+g-h@i"] == "v_1.2:3/4=5+6-7@8 z"
+    error_message = "keys/values using the allowed special characters should pass unchanged"
+  }
+}
+
+run "custom_max_tag_value_length_truncates" {
+  command = plan
+
+  # A tighter per-service value ceiling still truncates with a hash: 30 chars
+  # capped to 20 (15 leading + 5-char hash).
+  variables {
+    project              = "vlt"
+    max_tag_value_length = 20
+    tags = {
+      long = join("", [for i in range(30) : "a"])
+    }
+  }
+
+  assert {
+    condition     = length(output.tags["long"]) == 20
+    error_message = "a custom max_tag_value_length should cap the value, got ${length(output.tags["long"])}"
+  }
+}
+
+run "custom_max_tag_key_length_rejected" {
+  command = plan
+
+  # Tighter key ceiling (10) with an 11-char user key. tag_prefix="" keeps the
+  # generated "project" key within the ceiling.
+  variables {
+    project            = "vlt"
+    tag_prefix         = ""
+    max_tag_key_length = 10
+    tags = {
+      "12345678901" = "v"
+    }
+  }
+
+  expect_failures = [output.tags]
+}
+
+run "max_tag_value_length_out_of_range_rejected" {
+  command = plan
+
+  variables {
+    max_tag_value_length = 500
+  }
+
+  expect_failures = [var.max_tag_value_length]
+}

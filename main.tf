@@ -1,41 +1,48 @@
 locals {
   defaults = {
-    delimiter       = "-"
-    enabled         = true
-    non_prd         = false
-    prefix_enabled  = true
-    id_length_limit = 0
-    id_hash_length  = 5
+    delimiter            = "-"
+    enabled              = true
+    non_prd              = false
+    prefix_enabled       = true
+    id_length_limit      = 0
+    id_hash_length       = 5
+    max_tag_key_length   = 128
+    max_tag_value_length = 256
   }
 
-  # AWS tag constraints (Unicode characters): keys <= 128, values <= 256, and at
-  # most 50 user-created tags per resource.
-  max_tag_key_length   = 128
-  max_tag_value_length = 256
-  max_user_tags        = 50
+  # AWS caps user-created tags at 50 per resource (AWS-generated tags don't
+  # count). The key/value length ceilings default to the AWS maxima (128/256)
+  # but are configurable because some services are stricter — resolved below.
+  max_user_tags = 50
+
+  # Characters AWS permits in tag keys and values: letters, numbers, spaces and
+  # _ . : / = + - @ (length is still counted in Unicode characters).
+  tag_allowed_chars_regex = "^[\\p{L}\\p{N} _.:/=+@-]*$"
 
   # Explicit variables override the inherited context (null = inherit).
   # attributes and tags are merged (context first, then explicit value).
   input = {
-    enabled           = var.enabled == null ? var.context.enabled : var.enabled
-    country           = var.country == null ? var.context.country : var.country
-    stage             = var.stage == null ? var.context.stage : var.stage
-    aws_region        = var.aws_region == null ? var.context.aws_region : var.aws_region
-    deployment_region = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
-    project           = var.project == null ? var.context.project : var.project
-    application       = var.application == null ? var.context.application : var.application
-    module            = var.module == null ? var.context.module : var.module
-    stack_suffix      = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
-    owner             = var.owner == null ? var.context.owner : var.owner
-    name              = var.name == null ? var.context.name : var.name
-    non_prd           = var.non_prd == null ? var.context.non_prd : var.non_prd
-    delimiter         = var.delimiter == null ? var.context.delimiter : var.delimiter
-    prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
-    tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
-    tag_delimiter     = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
-    id_length_limit   = var.id_length_limit == null ? var.context.id_length_limit : var.id_length_limit
-    attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
-    tags              = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
+    enabled              = var.enabled == null ? var.context.enabled : var.enabled
+    country              = var.country == null ? var.context.country : var.country
+    stage                = var.stage == null ? var.context.stage : var.stage
+    aws_region           = var.aws_region == null ? var.context.aws_region : var.aws_region
+    deployment_region    = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
+    project              = var.project == null ? var.context.project : var.project
+    application          = var.application == null ? var.context.application : var.application
+    module               = var.module == null ? var.context.module : var.module
+    stack_suffix         = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
+    owner                = var.owner == null ? var.context.owner : var.owner
+    name                 = var.name == null ? var.context.name : var.name
+    non_prd              = var.non_prd == null ? var.context.non_prd : var.non_prd
+    delimiter            = var.delimiter == null ? var.context.delimiter : var.delimiter
+    prefix_enabled       = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
+    tag_prefix           = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
+    tag_delimiter        = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
+    id_length_limit      = var.id_length_limit == null ? var.context.id_length_limit : var.id_length_limit
+    max_tag_key_length   = var.max_tag_key_length == null ? var.context.max_tag_key_length : var.max_tag_key_length
+    max_tag_value_length = var.max_tag_value_length == null ? var.context.max_tag_value_length : var.max_tag_value_length
+    attributes           = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
+    tags                 = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
 
   # Coalesce to defaults so an explicit null (as a variable or via context) can't
@@ -55,6 +62,10 @@ locals {
   # 0 = unlimited id length. Coalesce a null (via var or context) to the default.
   id_length_limit = local.input.id_length_limit == null ? local.defaults.id_length_limit : local.input.id_length_limit
   id_hash_length  = local.defaults.id_hash_length
+
+  # Tag length ceilings, coalesced to the AWS maxima when unset.
+  max_tag_key_length   = local.input.max_tag_key_length == null ? local.defaults.max_tag_key_length : local.input.max_tag_key_length
+  max_tag_value_length = local.input.max_tag_value_length == null ? local.defaults.max_tag_value_length : local.input.max_tag_value_length
 
   country = local.input.country == null ? "" : local.input.country
   stage   = local.input.stage == null ? "" : local.input.stage
@@ -126,38 +137,45 @@ locals {
   # never emits an empty tag value (applies the generated_tags filter to the whole map).
   tags_raw = local.enabled ? { for k, v in merge(local.generated_tags, local.input.tags) : k => v if v != null && v != "" } : {}
 
-  # Cap tag values at 256 Unicode characters (AWS limit): over-long values are
-  # truncated to (256 - hash) characters plus a short md5 hash of the original,
-  # mirroring the id truncation so distinct long values stay distinct.
+  # Cap tag values at max_tag_value_length Unicode characters: over-long values
+  # are truncated to (limit - hash) characters plus a short md5 hash of the
+  # original, mirroring the id truncation so distinct long values stay distinct.
   tags = { for k, v in local.tags_raw : k => length(v) > local.max_tag_value_length ? "${substr(v, 0, local.max_tag_value_length - local.id_hash_length)}${substr(md5(v), 0, local.id_hash_length)}" : v }
 
-  # Tag-constraint validation helpers (surfaced as output preconditions).
-  tag_keys           = keys(local.tags)
-  oversized_tag_keys = [for k in local.tag_keys : k if length(k) > local.max_tag_key_length]
-  has_empty_tag_key  = contains(local.tag_keys, "")
-  user_tag_count     = length(local.input.tags)
+  # Tag-constraint validation helpers (surfaced as output preconditions). Keys are
+  # checked on the final (emitted) set; values are checked on tags_raw so an
+  # invalid character anywhere in a long value is caught before truncation.
+  tag_keys             = keys(local.tags)
+  oversized_tag_keys   = [for k in local.tag_keys : k if length(k) > local.max_tag_key_length]
+  has_empty_tag_key    = contains(local.tag_keys, "")
+  invalid_char_keys    = [for k in local.tag_keys : k if !can(regex(local.tag_allowed_chars_regex, k))]
+  reserved_prefix_keys = [for k in local.tag_keys : k if substr(lower(k), 0, 4) == "aws:"]
+  invalid_value_keys   = [for k, v in local.tags_raw : k if !can(regex(local.tag_allowed_chars_regex, v))]
+  user_tag_count       = length(local.input.tags)
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
   output_context = {
-    enabled           = local.enabled
-    country           = local.input.country
-    stage             = local.input.stage
-    aws_region        = local.input.aws_region
-    deployment_region = local.input.deployment_region
-    project           = local.input.project
-    application       = local.input.application
-    module            = local.input.module
-    stack_suffix      = local.input.stack_suffix
-    owner             = local.input.owner
-    name              = local.input.name
-    attributes        = local.input.attributes
-    non_prd           = local.non_prd
-    delimiter         = local.delimiter
-    prefix_enabled    = local.prefix_enabled
-    tag_prefix        = local.tag_prefix
-    tag_delimiter     = local.tag_delimiter
-    id_length_limit   = local.id_length_limit
-    tags              = local.input.tags
+    enabled              = local.enabled
+    country              = local.input.country
+    stage                = local.input.stage
+    aws_region           = local.input.aws_region
+    deployment_region    = local.input.deployment_region
+    project              = local.input.project
+    application          = local.input.application
+    module               = local.input.module
+    stack_suffix         = local.input.stack_suffix
+    owner                = local.input.owner
+    name                 = local.input.name
+    attributes           = local.input.attributes
+    non_prd              = local.non_prd
+    delimiter            = local.delimiter
+    prefix_enabled       = local.prefix_enabled
+    tag_prefix           = local.tag_prefix
+    tag_delimiter        = local.tag_delimiter
+    id_length_limit      = local.id_length_limit
+    max_tag_key_length   = local.max_tag_key_length
+    max_tag_value_length = local.max_tag_value_length
+    tags                 = local.input.tags
   }
 }

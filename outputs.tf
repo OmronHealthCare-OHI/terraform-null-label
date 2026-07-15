@@ -31,6 +31,18 @@ output "tags" {
     error_message = "Tag keys must not be empty strings."
   }
   precondition {
+    condition     = length(local.invalid_char_keys) == 0
+    error_message = "Tag keys may only contain letters, numbers, spaces and _ . : / = + - @. Offending keys: ${join(", ", local.invalid_char_keys)}."
+  }
+  precondition {
+    condition     = length(local.reserved_prefix_keys) == 0
+    error_message = "Tag keys must not begin with the reserved \"aws:\" prefix. Offending keys: ${join(", ", local.reserved_prefix_keys)}."
+  }
+  precondition {
+    condition     = length(local.invalid_value_keys) == 0
+    error_message = "Tag values may only contain letters, numbers, spaces and _ . : / = + - @. Offending keys: ${join(", ", local.invalid_value_keys)}."
+  }
+  precondition {
     condition     = !local.enabled || local.user_tag_count <= local.max_user_tags
     error_message = "A resource may have at most ${local.max_user_tags} user-created tags; got ${local.user_tag_count}."
   }
