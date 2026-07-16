@@ -11,18 +11,21 @@ variable "context" {
   type = object({
     enabled           = optional(bool, true)
     country           = optional(string, null)
-    environment       = optional(string, null)
+    stage             = optional(string, null)
+    aws_region        = optional(string, null)
     deployment_region = optional(string, null)
     project           = optional(string, null)
     application       = optional(string, null)
     module            = optional(string, null)
     stack_suffix      = optional(string, null)
+    owner             = optional(string, null)
     name              = optional(string, null)
     attributes        = optional(list(string), [])
     non_prd           = optional(bool, false)
     delimiter         = optional(string, "-")
     prefix_enabled    = optional(bool, true)
-    tag_prefix        = optional(string, "ohi:")
+    tag_prefix        = optional(string, "ohi")
+    tag_delimiter     = optional(string, ":")
     tags              = optional(map(string), {})
   })
   default = {}
@@ -34,7 +37,7 @@ variable "enabled" {
   default     = null
 }
 
-# --- PREFIX parts: <country><environment>-<deployment_region>, e.g. usstg-usw2 ---
+# --- PREFIX parts: <country><stage>-<deployment_region>, e.g. usstg-usw2 ---
 
 variable "country" {
   description = "Country code, e.g. us, eu, jp, in, sg, br."
@@ -42,20 +45,36 @@ variable "country" {
   default     = null
 }
 
-variable "environment" {
-  description = "Environment code, e.g. dev, qa, stg, beta, prd. Ignored for the environment segment when non_prd = true."
+variable "stage" {
+  description = "Stage code, e.g. dev, qa, stg, prd. Ignored for the stage segment when non_prd = true."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.stage == null || contains(["dev", "qa", "stg", "prd"], var.stage)
+    error_message = "The stage must be one of: dev, qa, stg, prd."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region code, e.g. us-west-2, eu-west-1, ap-northeast-1. When deployment_region is not set, the PREFIX region segment is derived from this value."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.aws_region == null || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
+    error_message = "The aws_region must be a valid AWS region code, e.g. us-west-2, eu-central-1, ap-northeast-1."
+  }
 }
 
 variable "deployment_region" {
-  description = "Deployment region short code, e.g. usw2, euw1, apne1."
+  description = "Deployment region short code, e.g. usw2, euw1, apn1. Overwrites the AWS region code for the PREFIX segment. When null, it is derived from aws_region."
   type        = string
   default     = null
 }
 
 variable "non_prd" {
-  description = "When true, the environment segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg/beta) carry a single non-prod environment."
+  description = "When true, the stage segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage."
   type        = bool
   default     = null
 }
@@ -91,6 +110,14 @@ variable "stack_suffix" {
   default     = null
 }
 
+# --- Ownership ---
+
+variable "owner" {
+  description = "The circle that controls the resource. Emitted as the ohi:owner tag (subject to tag_prefix/tag_delimiter). Not part of the id or the ohi:* naming hierarchy."
+  type        = string
+  default     = null
+}
+
 # --- Name generation ---
 
 variable "name" {
@@ -118,9 +145,29 @@ variable "delimiter" {
 }
 
 variable "tag_prefix" {
-  description = "Prefix prepended to the generated tag keys, e.g. \"ohi:\" produces ohi:project. Set to \"\" for unprefixed keys (project, application, …). The Name tag is never prefixed."
+  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). null inherits from context (defaults to \"ohi\"). The Name tag is never prefixed."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.tag_prefix == null || lower(var.tag_prefix) != "aws"
+    error_message = "Do not use AWS: or any upper or lowercase combination of such as a prefix for either keys or values. These are reserved only for AWS use."
+  }
+  validation {
+    condition     = var.tag_prefix == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_prefix))
+    error_message = "The tag_prefix may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
+  }
+}
+
+variable "tag_delimiter" {
+  description = "Delimiter between tag key segments (e.g. \":\" produces ohi:project). null inherits from context (defaults to \":\"). The Name tag is never affected by this setting."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.tag_delimiter == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_delimiter))
+    error_message = "The tag_delimiter may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
+  }
 }
 
 variable "tags" {

@@ -9,7 +9,7 @@ output "name" {
 }
 
 output "prefix" {
-  description = "The computed PREFIX: <country><environment>-<deployment_region> (or <country>np-<region> when non_prd)."
+  description = "The computed PREFIX: <country><stage>-<deployment_region> (or <country>np-<region> when non_prd)."
   value       = local.prefix
 }
 

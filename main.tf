@@ -11,17 +11,20 @@ locals {
   input = {
     enabled           = var.enabled == null ? var.context.enabled : var.enabled
     country           = var.country == null ? var.context.country : var.country
-    environment       = var.environment == null ? var.context.environment : var.environment
+    stage             = var.stage == null ? var.context.stage : var.stage
+    aws_region        = var.aws_region == null ? var.context.aws_region : var.aws_region
     deployment_region = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
     project           = var.project == null ? var.context.project : var.project
     application       = var.application == null ? var.context.application : var.application
     module            = var.module == null ? var.context.module : var.module
     stack_suffix      = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
+    owner             = var.owner == null ? var.context.owner : var.owner
     name              = var.name == null ? var.context.name : var.name
     non_prd           = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter         = var.delimiter == null ? var.context.delimiter : var.delimiter
     prefix_enabled    = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
     tag_prefix        = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
+    tag_delimiter     = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
     attributes        = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
     tags              = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
@@ -33,16 +36,24 @@ locals {
   prefix_enabled = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
   delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
-  country     = local.input.country == null ? "" : local.input.country
-  environment = local.input.environment == null ? "" : local.input.environment
-  region      = local.input.deployment_region == null ? "" : local.input.deployment_region
-  name        = local.input.name == null ? "" : local.input.name
+  # deployment_region derived from aws_region when not set explicitly: split the
+  # region on "-" and join <part0><first-letter-of-part1><part2>, so
+  # us-west-2 -> usw2, eu-central-1 -> euc1, ap-northeast-1 -> apn1.
+  aws_region_parts          = local.input.aws_region == null ? [] : split("-", local.input.aws_region)
+  derived_deployment_region = local.input.aws_region == null ? null : "${local.aws_region_parts[0]}${substr(local.aws_region_parts[1], 0, 1)}${local.aws_region_parts[2]}"
+  deployment_region         = local.input.deployment_region == null ? local.derived_deployment_region : local.input.deployment_region
+
+  country = local.input.country == null ? "" : local.input.country
+  stage   = local.input.stage == null ? "" : local.input.stage
+  region  = local.deployment_region == null ? "" : local.deployment_region
+  name    = local.input.name == null ? "" : local.input.name
 
   # Tag hierarchy segments (null -> "").
   project      = local.input.project == null ? "" : local.input.project
   application  = local.input.application == null ? "" : local.input.application
   module       = local.input.module == null ? "" : local.input.module
   stack_suffix = local.input.stack_suffix == null ? "" : local.input.stack_suffix
+  owner        = local.input.owner == null ? "" : local.input.owner
 
   # ohi:* hierarchy composes by nesting: project -> project-application ->
   # project-application-module; ohi:stack-name = <PREFIX>-<project>-<stack_suffix>.
@@ -54,11 +65,11 @@ locals {
   ohi_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
   ohi_stack_name  = local.stack_suffix == "" ? "" : join(local.delimiter, compact([local.prefix, local.project, local.stack_suffix]))
 
-  # PREFIX environment segment: <country><environment>, or <country>np when non_prd.
-  environment_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.environment}"
+  # PREFIX stage segment: <country><stage>, or <country>np when non_prd.
+  stage_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.stage}"
 
-  # PREFIX = <environment_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
-  prefix = join(local.delimiter, compact([local.environment_segment, local.region]))
+  # PREFIX = <stage_segment>-<deployment_region>, e.g. usstg-usw2 / usnp-usw2.
+  prefix = join(local.delimiter, compact([local.stage_segment, local.region]))
 
   # id joins the non-empty segments with the delimiter, in order: <PREFIX>,
   # <name>, then <attributes...>. Following cloudposse null-label, `attributes`
@@ -69,17 +80,21 @@ locals {
   id_parts = local.prefix_enabled ? concat([local.prefix, local.name], local.input.attributes) : concat([local.name], local.input.attributes)
   id       = local.enabled ? join(local.delimiter, compact(local.id_parts)) : ""
 
-  # Tag-key prefix (e.g. "ohi:"). Empty string yields unprefixed keys. Name is never prefixed.
-  tag_prefix = local.input.tag_prefix == null ? "ohi:" : local.input.tag_prefix
+  # Tag-key prefix + delimiter (e.g. "ohi" + ":" -> "ohi:project"). Coalesce a
+  # null (via var or context) to the default so compact() never sees a null.
+  # An empty tag_prefix drops the prefix segment, yielding unprefixed keys.
+  tag_prefix    = local.input.tag_prefix == null ? "ohi" : local.input.tag_prefix
+  tag_delimiter = local.input.tag_delimiter == null ? ":" : local.input.tag_delimiter
 
   # Required OMRON tags (only emitted when non-empty), plus AWS Name = id.
   generated_tags_all = {
-    "${local.tag_prefix}project"     = local.ohi_project
-    "${local.tag_prefix}application" = local.ohi_application
-    "${local.tag_prefix}module"      = local.ohi_module
-    "${local.tag_prefix}stack-name"  = local.ohi_stack_name
-    "${local.tag_prefix}environment" = local.prefix
-    "Name"                           = local.id
+    (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.ohi_project
+    (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.ohi_application
+    (join(local.tag_delimiter, compact([local.tag_prefix, "module"])))      = local.ohi_module
+    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.ohi_stack_name
+    (join(local.tag_delimiter, compact([local.tag_prefix, "environment"]))) = local.prefix
+    (join(local.tag_delimiter, compact([local.tag_prefix, "owner"])))       = local.owner
+    "Name"                                                                  = local.id
   }
   generated_tags = { for k, v in local.generated_tags_all : k => v if v != null && v != "" }
 
@@ -92,18 +107,21 @@ locals {
   output_context = {
     enabled           = local.enabled
     country           = local.input.country
-    environment       = local.input.environment
+    stage             = local.input.stage
+    aws_region        = local.input.aws_region
     deployment_region = local.input.deployment_region
     project           = local.input.project
     application       = local.input.application
     module            = local.input.module
     stack_suffix      = local.input.stack_suffix
+    owner             = local.input.owner
     name              = local.input.name
     attributes        = local.input.attributes
     non_prd           = local.non_prd
     delimiter         = local.delimiter
     prefix_enabled    = local.prefix_enabled
     tag_prefix        = local.tag_prefix
+    tag_delimiter     = local.tag_delimiter
     tags              = local.input.tags
   }
 }

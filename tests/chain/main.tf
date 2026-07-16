@@ -11,10 +11,11 @@ module "org" {
   source = "../../"
 
   country           = "us"
-  environment       = "stg"
+  stage             = "stg"
   deployment_region = "usw2"
   project           = "vlt"
   application       = "mobile"
+  owner             = "vlt-mobile-circle"
 
   tags = {
     Team = "voltron"

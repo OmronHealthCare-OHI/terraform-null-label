@@ -5,19 +5,20 @@ run "full_label_us_stg" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = "mobile"
     module            = "be"
     stack_suffix      = "be-serverless-stack"
+    owner             = "vlt-mobile-circle"
     name              = "vlt-mobile-api"
     attributes        = ["v1"]
   }
 
   assert {
     condition     = output.prefix == "usstg-usw2"
-    error_message = "PREFIX should be <country><environment>-<region> (usstg-usw2), got ${output.prefix}"
+    error_message = "PREFIX should be <country><stage>-<region> (usstg-usw2), got ${output.prefix}"
   }
   assert {
     condition     = output.id == "usstg-usw2-vlt-mobile-api-v1"
@@ -44,25 +45,93 @@ run "full_label_us_stg" {
     error_message = "ohi:environment tag should equal the prefix"
   }
   assert {
+    condition     = output.tags["ohi:owner"] == "vlt-mobile-circle"
+    error_message = "ohi:owner tag should equal the owner input"
+  }
+  assert {
     condition     = output.tags["Name"] == "usstg-usw2-vlt-mobile-api-v1"
     error_message = "Name tag should equal the id"
   }
 }
 
-run "eu_beta_region" {
+run "eu_stg_region" {
   command = plan
 
   variables {
     country           = "eu"
-    environment       = "beta"
+    stage       = "stg"
     deployment_region = "euw1"
     name              = "vlt-mobile-api"
   }
 
   assert {
-    condition     = output.id == "eubeta-euw1-vlt-mobile-api"
-    error_message = "id for eu/beta/euw1 mismatch, got ${output.id}"
+    condition     = output.id == "eustg-euw1-vlt-mobile-api"
+    error_message = "id for eu/stg/euw1 mismatch, got ${output.id}"
   }
+}
+
+run "deployment_region_derived_from_aws_region" {
+  command = plan
+
+  # deployment_region is unset, so it is derived from aws_region:
+  # us-west-2 -> usw2 (<part0><first-letter-of-part1><part2>).
+  variables {
+    country     = "us"
+    stage       = "stg"
+    aws_region  = "us-west-2"
+    name        = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "usstg-usw2"
+    error_message = "aws_region us-west-2 should derive deployment_region usw2, got prefix ${output.prefix}"
+  }
+}
+
+run "deployment_region_derived_multiletter" {
+  command = plan
+
+  # eu-central-1 -> euc1, ap-northeast-1 -> apn1.
+  variables {
+    country     = "eu"
+    stage       = "stg"
+    aws_region  = "eu-central-1"
+    name        = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "eustg-euc1"
+    error_message = "aws_region eu-central-1 should derive deployment_region euc1, got prefix ${output.prefix}"
+  }
+}
+
+run "explicit_deployment_region_overrides_aws_region" {
+  command = plan
+
+  # An explicit deployment_region wins over the value derived from aws_region.
+  variables {
+    country           = "us"
+    stage             = "stg"
+    aws_region        = "us-west-2"
+    deployment_region = "use1"
+    name              = "vlt-mobile-api"
+  }
+
+  assert {
+    condition     = output.prefix == "usstg-use1"
+    error_message = "explicit deployment_region should override the aws_region derivation, got ${output.prefix}"
+  }
+}
+
+run "invalid_aws_region_rejected" {
+  command = plan
+
+  variables {
+    aws_region = "notaregion"
+    name       = "vlt-mobile-api"
+  }
+
+  expect_failures = [var.aws_region]
 }
 
 run "non_prd_naming" {
@@ -70,7 +139,7 @@ run "non_prd_naming" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     non_prd           = true
     name              = "vlt-shared"
@@ -95,7 +164,7 @@ run "prefix_suppressed" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     prefix_enabled    = false
     name              = "vlt-service-secrets"
@@ -112,7 +181,7 @@ run "bare_tag_prefix" {
 
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     name              = "vlt-mobile-api"
@@ -140,7 +209,7 @@ run "infra_set_composition" {
   # segment is empty; module composes to <project>-infra.
   variables {
     country           = "us"
-    environment       = "stg"
+    stage       = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     application       = ""

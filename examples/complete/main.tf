@@ -7,13 +7,14 @@ module "label" {
   source = "../../"
 
   country           = "us"
-  environment       = "stg"
+  stage             = "stg"
   deployment_region = "usw2"
 
   project      = "vlt"
   application  = "mobile"              # -> ohi:application = vlt-mobile
   module       = "be"                  # -> ohi:module      = vlt-mobile-be
   stack_suffix = "be-serverless-stack" # -> ohi:stack-name  = usstg-usw2-vlt-be-serverless-stack
+  owner        = "vlt-mobile-circle"   # -> ohi:owner       = vlt-mobile-circle
 
   tags = {
     Team = "voltron"
@@ -29,7 +30,7 @@ module "api_label" {
   attributes = ["v1"]
 }
 
-# Non-prod shared resource: same context, but non_prd swaps the environment segment.
+# Non-prod shared resource: same context, but non_prd swaps the stage segment.
 module "shared_nonprd_label" {
   source = "../../"
 
