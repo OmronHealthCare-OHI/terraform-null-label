@@ -42,7 +42,7 @@ jobs:
         with:
           tflint_version: latest
       # python
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
       # Checkov
       - name: Setup Checkov
         run: pip install checkov
