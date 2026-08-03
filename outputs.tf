@@ -19,7 +19,7 @@ output "prefix" {
 }
 
 output "tags" {
-  description = "The generated tags: the required ohi:* tags + Name, merged with any additional tags. Values are capped at 256 Unicode characters."
+  description = "The generated tags: the required ohi:* tags + Name, merged with any additional tags. Values are capped at max_tag_value_length Unicode characters (default 256, the AWS ceiling)."
   value       = local.tags
 
   precondition {

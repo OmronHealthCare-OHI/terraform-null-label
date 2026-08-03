@@ -207,7 +207,7 @@ variable "max_tag_value_length" {
 }
 
 variable "tags" {
-  description = "Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be 1-128 and values at most 256 Unicode characters (over-long values are truncated with a hash). Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
+  description = "Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters — both default to the AWS maxima but can be lowered for stricter services (over-long values are truncated with a hash). Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
   type        = map(string)
   default     = {}
 }
