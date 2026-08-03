@@ -9,16 +9,16 @@ run "org_to_workload_to_resource" {
     source = "./tests/chain"
   }
 
-  # Org level is partial (no name) -> id is just the prefix.
+  # Org level is partial (no name) -> id composes the hierarchy: PREFIX-project-application.
   assert {
-    condition     = output.org_id == "usstg-usw2"
-    error_message = "org label id should be the prefix, got ${output.org_id}"
+    condition     = output.org_id == "usstg-usw2-vlt-mobile"
+    error_message = "org label id should compose the hierarchy, got ${output.org_id}"
   }
 
-  # Workload inherits prefix + project/application from context and adds module + name.
+  # Workload inherits prefix + project/application from context and adds module + leaf name.
   assert {
     condition     = output.workload_id == "usstg-usw2-vlt-mobile-api"
-    error_message = "workload id should extend the prefix with the name, got ${output.workload_id}"
+    error_message = "workload id should be PREFIX-hierarchy-name, got ${output.workload_id}"
   }
   assert {
     condition     = output.workload_tags["ohi:project"] == "vlt" && output.workload_tags["ohi:application"] == "vlt-mobile"

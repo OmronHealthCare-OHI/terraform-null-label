@@ -13,8 +13,8 @@ run "org_level_partial" {
   }
 
   assert {
-    condition     = output.id == "usstg-usw2"
-    error_message = "a partial label with no name should be just the prefix, got ${output.id}"
+    condition     = output.id == "usstg-usw2-vlt-mobile"
+    error_message = "a nameless label composes the hierarchy: <PREFIX>-<project>-<application>, got ${output.id}"
   }
   assert {
     condition     = output.tags["ohi:project"] == "vlt" && output.tags["ohi:application"] == "vlt-mobile"
@@ -25,8 +25,12 @@ run "org_level_partial" {
     error_message = "ohi:environment should be the prefix"
   }
   assert {
-    condition     = !contains(keys(output.tags), "ohi:module") && !contains(keys(output.tags), "ohi:stack-name")
-    error_message = "unset hierarchy tags should be omitted"
+    condition     = !contains(keys(output.tags), "ohi:module")
+    error_message = "unset module tag should be omitted"
+  }
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile"
+    error_message = "ohi:stack-name derives from the deepest set hierarchy (here application), got ${output.tags["ohi:stack-name"]}"
   }
   assert {
     condition     = !contains(keys(output.tags), "ohi:owner")
@@ -43,16 +47,24 @@ run "only_project" {
   }
 
   assert {
-    condition     = output.id == ""
-    error_message = "with no prefix parts and no name, id should be empty, got ${output.id}"
+    condition     = output.id == "vlt"
+    error_message = "with no prefix parts and no name, the id is just the hierarchy (vlt), got ${output.id}"
   }
   assert {
     condition     = output.tags["ohi:project"] == "vlt"
     error_message = "ohi:project should be present"
   }
   assert {
-    condition     = length(output.tags) == 1
-    error_message = "only ohi:project should be emitted (no stage, no Name), got ${length(output.tags)} tags"
+    condition     = output.tags["Name"] == "vlt"
+    error_message = "Name should equal the id (vlt)"
+  }
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "vlt"
+    error_message = "ohi:stack-name derives from the deepest hierarchy (project), got ${output.tags["ohi:stack-name"]}"
+  }
+  assert {
+    condition     = length(output.tags) == 3
+    error_message = "ohi:project + Name + ohi:stack-name should be emitted (no stage), got ${length(output.tags)} tags"
   }
 }
 
@@ -62,7 +74,7 @@ run "disabled" {
   variables {
     enabled           = false
     country           = "us"
-    stage       = "stg"
+    stage             = "stg"
     deployment_region = "usw2"
     project           = "vlt"
     name              = "vlt-mobile-api"

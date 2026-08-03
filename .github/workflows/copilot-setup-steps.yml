@@ -28,7 +28,7 @@ jobs:
       - name: Get Terraform docs version
         id: get-terraform-docs-version
         run: |
-          VERSION=$(grep '^version:' .terraform-docs.yml | awk '{print $2}')
+          VERSION=$(grep '^version:' .terraform-docs.yml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Setup Terraform docs
         uses: jaxxstorm/action-install-gh-release@v2.1.0

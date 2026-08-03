@@ -9,24 +9,27 @@
 variable "context" {
   description = "Inherited label context from a parent module invocation. Explicit variables override matching context fields; attributes and tags are merged."
   type = object({
-    enabled           = optional(bool, true)
-    country           = optional(string, null)
-    stage             = optional(string, null)
-    aws_region        = optional(string, null)
-    deployment_region = optional(string, null)
-    project           = optional(string, null)
-    application       = optional(string, null)
-    module            = optional(string, null)
-    stack_suffix      = optional(string, null)
-    owner             = optional(string, null)
-    name              = optional(string, null)
-    attributes        = optional(list(string), [])
-    non_prd           = optional(bool, false)
-    delimiter         = optional(string, "-")
-    prefix_enabled    = optional(bool, true)
-    tag_prefix        = optional(string, "ohi")
-    tag_delimiter     = optional(string, ":")
-    tags              = optional(map(string), {})
+    enabled              = optional(bool, true)
+    country              = optional(string, null)
+    stage                = optional(string, null)
+    aws_region           = optional(string, null)
+    deployment_region    = optional(string, null)
+    project              = optional(string, null)
+    application          = optional(string, null)
+    module               = optional(string, null)
+    stack_suffix         = optional(string, null)
+    owner                = optional(string, null)
+    name                 = optional(string, null)
+    attributes           = optional(list(string), [])
+    non_prd              = optional(bool, false)
+    delimiter            = optional(string, "-")
+    prefix_enabled       = optional(bool, true)
+    tag_prefix           = optional(string, "ohi")
+    tag_delimiter        = optional(string, ":")
+    id_length_limit      = optional(number, null)
+    max_tag_key_length   = optional(number, null)
+    max_tag_value_length = optional(number, null)
+    tags                 = optional(map(string), {})
   })
   default = {}
 }
@@ -105,7 +108,7 @@ variable "module" {
 }
 
 variable "stack_suffix" {
-  description = "Suffix appended to <PREFIX>-<project> to form ohi:stack-name (e.g. \"be-serverless-stack\" -> usstg-usw2-vlt-be-serverless-stack)."
+  description = "OPTIONAL override for ohi:stack-name. By default ohi:stack-name is derived as <PREFIX>-<deepest hierarchy> (module, else application, else project), so this is NOT needed for normal use. Set it only to pin an exact value <PREFIX>-<stack_suffix> when something external depends on a specific stack name; it can be removed from the module if nobody uses it."
   type        = string
   default     = null
 }
@@ -121,7 +124,7 @@ variable "owner" {
 # --- Name generation ---
 
 variable "name" {
-  description = "The resource name appended after the PREFIX to form the id (e.g. vlt-mobile-api)."
+  description = "The leaf resource name. The id composes the inherited hierarchy in front of it — <PREFIX>-<project>-<application>-<name>-<attributes...> — so keep it short (e.g. project=vlt, application=mobile, name=\"api\" -> usstg-usw2-vlt-mobile-api). The project/application segments come from those inputs, not from name."
   type        = string
   default     = null
 }
@@ -145,7 +148,7 @@ variable "delimiter" {
 }
 
 variable "tag_prefix" {
-  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). null inherits from context (defaults to \"ohi\"). The Name tag is never prefixed."
+  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). null inherits from context (defaults to \"ohi\"). The Name tag is never prefixed. Must not resolve to the reserved \"aws:\" prefix."
   type        = string
   default     = null
 
@@ -170,8 +173,41 @@ variable "tag_delimiter" {
   }
 }
 
+variable "id_length_limit" {
+  description = "Limit the generated id output to at most this many characters. When the full id is longer, the leading characters are kept and a short md5 hash is appended so distinct ids stay unique (CloudPosse null-label parity). The Name tag is unaffected — it carries the full id, bound only by the tag-value limit. Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set; with very small limits or multi-character delimiters the leading portion and/or delimiter may be dropped (the id can be shorter than the limit), but the 5-char hash is always preserved. Does not affect the id segments carried in context."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.id_length_limit == null || var.id_length_limit == 0 || var.id_length_limit >= 6
+    error_message = "The id_length_limit must be >= 6 when set, or 0 for unlimited length."
+  }
+}
+
+variable "max_tag_key_length" {
+  description = "Maximum tag key length in Unicode characters. Defaults to the AWS ceiling of 128; lower it for services with tighter restrictions. Inherited via context. Keys longer than this raise an error."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.max_tag_key_length == null || (var.max_tag_key_length >= 1 && var.max_tag_key_length <= 128)
+    error_message = "The max_tag_key_length must be between 1 and 128 (the AWS ceiling)."
+  }
+}
+
+variable "max_tag_value_length" {
+  description = "Maximum tag value length in Unicode characters. Defaults to the AWS ceiling of 256; lower it for services with tighter restrictions. Inherited via context. Values longer than this are truncated to (limit - 5) characters plus a 5-char hash."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.max_tag_value_length == null || (var.max_tag_value_length >= 6 && var.max_tag_value_length <= 256)
+    error_message = "The max_tag_value_length must be between 6 and 256 (the AWS ceiling), leaving room for the 5-char truncation hash."
+  }
+}
+
 variable "tags" {
-  description = "Additional tags to merge on top of the generated ohi:* and Name tags."
+  description = "Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters — both default to the AWS maxima but can be lowered for stricter services (over-long values are truncated with a hash). Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
   type        = map(string)
   default     = {}
 }
