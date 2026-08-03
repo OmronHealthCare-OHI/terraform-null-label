@@ -84,19 +84,20 @@ locals {
   # ohi:* hierarchy composes by nesting: project -> project-application ->
   # project-application-module. application is emitted once there is an
   # application or module segment (it defaults to the project value, as the infra
-  # set does); module is only emitted when its own segment is set.
-  ohi_project     = local.project
-  ohi_application = (local.application == "" && local.module == "") ? "" : join(local.delimiter, compact([local.project, local.application]))
-  ohi_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
+  # set does); module is only emitted when its own segment is set. These are the
+  # tag *values*; the tag-key prefix is configurable via tag_prefix.
+  hierarchy_project     = local.project
+  hierarchy_application = (local.application == "" && local.module == "") ? "" : join(local.delimiter, compact([local.project, local.application]))
+  hierarchy_module      = local.module == "" ? "" : join(local.delimiter, compact([local.project, local.application, local.module]))
 
-  # ohi:stack-name identifies the concrete deployed stack: <PREFIX>-<deepest set
+  # stack-name identifies the concrete deployed stack: <PREFIX>-<deepest set
   # hierarchy> (module, else application, else project) — e.g. usstg-usw2-vlt-mobile-be.
   # stack_suffix is an OPTIONAL escape hatch to pin an exact value
   # (<PREFIX>-<stack_suffix>) when something external needs it; it is NOT required
   # for normal use and can be dropped from the module if nobody relies on it.
-  stack_hierarchy = local.module != "" ? local.ohi_module : (local.application != "" ? local.ohi_application : local.ohi_project)
+  stack_hierarchy = local.module != "" ? local.hierarchy_module : (local.application != "" ? local.hierarchy_application : local.hierarchy_project)
   stack_identity  = local.stack_suffix != "" ? local.stack_suffix : local.stack_hierarchy
-  ohi_stack_name  = local.stack_identity == "" ? "" : join(local.delimiter, compact([local.prefix, local.stack_identity]))
+  stack_name      = local.stack_identity == "" ? "" : join(local.delimiter, compact([local.prefix, local.stack_identity]))
 
   # PREFIX stage segment: <country><stage>, or <country>np when non_prd.
   stage_segment = local.non_prd ? (local.country == "" ? "" : "${local.country}np") : "${local.country}${local.stage}"
@@ -134,10 +135,10 @@ locals {
   # Name carries the full id (id_length_limit governs the id output for resource
   # identifiers; as a tag, Name is bound only by the tag-value limit applied below).
   generated_tags_all = {
-    (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.ohi_project
-    (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.ohi_application
-    (join(local.tag_delimiter, compact([local.tag_prefix, "module"])))      = local.ohi_module
-    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.ohi_stack_name
+    (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.hierarchy_project
+    (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.hierarchy_application
+    (join(local.tag_delimiter, compact([local.tag_prefix, "module"])))      = local.hierarchy_module
+    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.stack_name
     (join(local.tag_delimiter, compact([local.tag_prefix, "environment"]))) = local.prefix
     (join(local.tag_delimiter, compact([local.tag_prefix, "owner"])))       = local.owner
     "Name"                                                                  = local.id_full
