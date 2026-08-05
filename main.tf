@@ -1,13 +1,15 @@
 locals {
   defaults = {
-    delimiter            = "-"
-    enabled              = true
-    non_prd              = false
-    prefix_enabled       = true
-    id_length_limit      = 0
-    id_hash_length       = 5
-    max_tag_key_length   = 128
-    max_tag_value_length = 256
+    delimiter                 = "-"
+    enabled                   = true
+    non_prd                   = false
+    prefix_enabled            = true
+    stack_name_enabled        = true
+    owner_propagation_enabled = true
+    id_length_limit           = 0
+    id_hash_length            = 5
+    max_tag_key_length        = 128
+    max_tag_value_length      = 256
   }
 
   # AWS tag constraints — see
@@ -24,35 +26,39 @@ locals {
   # Explicit variables override the inherited context (null = inherit).
   # attributes and tags are merged (context first, then explicit value).
   input = {
-    enabled              = var.enabled == null ? var.context.enabled : var.enabled
-    country              = var.country == null ? var.context.country : var.country
-    stage                = var.stage == null ? var.context.stage : var.stage
-    aws_region           = var.aws_region == null ? var.context.aws_region : var.aws_region
-    deployment_region    = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
-    project              = var.project == null ? var.context.project : var.project
-    application          = var.application == null ? var.context.application : var.application
-    module               = var.module == null ? var.context.module : var.module
-    stack_suffix         = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
-    owner                = var.owner == null ? var.context.owner : var.owner
-    name                 = var.name == null ? var.context.name : var.name
-    non_prd              = var.non_prd == null ? var.context.non_prd : var.non_prd
-    delimiter            = var.delimiter == null ? var.context.delimiter : var.delimiter
-    prefix_enabled       = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
-    tag_prefix           = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
-    tag_delimiter        = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
-    id_length_limit      = var.id_length_limit == null ? var.context.id_length_limit : var.id_length_limit
-    max_tag_key_length   = var.max_tag_key_length == null ? var.context.max_tag_key_length : var.max_tag_key_length
-    max_tag_value_length = var.max_tag_value_length == null ? var.context.max_tag_value_length : var.max_tag_value_length
-    attributes           = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
-    tags                 = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
+    enabled                   = var.enabled == null ? var.context.enabled : var.enabled
+    country                   = var.country == null ? var.context.country : var.country
+    stage                     = var.stage == null ? var.context.stage : var.stage
+    aws_region                = var.aws_region == null ? var.context.aws_region : var.aws_region
+    deployment_region         = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
+    project                   = var.project == null ? var.context.project : var.project
+    application               = var.application == null ? var.context.application : var.application
+    module                    = var.module == null ? var.context.module : var.module
+    stack_suffix              = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
+    stack_name_enabled        = var.stack_name_enabled == null ? var.context.stack_name_enabled : var.stack_name_enabled
+    owner                     = var.owner == null ? var.context.owner : var.owner
+    owner_propagation_enabled = var.owner_propagation_enabled == null ? var.context.owner_propagation_enabled : var.owner_propagation_enabled
+    name                      = var.name == null ? var.context.name : var.name
+    non_prd                   = var.non_prd == null ? var.context.non_prd : var.non_prd
+    delimiter                 = var.delimiter == null ? var.context.delimiter : var.delimiter
+    prefix_enabled            = var.prefix_enabled == null ? var.context.prefix_enabled : var.prefix_enabled
+    tag_prefix                = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
+    tag_delimiter             = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
+    id_length_limit           = var.id_length_limit == null ? var.context.id_length_limit : var.id_length_limit
+    max_tag_key_length        = var.max_tag_key_length == null ? var.context.max_tag_key_length : var.max_tag_key_length
+    max_tag_value_length      = var.max_tag_value_length == null ? var.context.max_tag_value_length : var.max_tag_value_length
+    attributes                = compact(distinct(concat(coalesce(var.context.attributes, []), coalesce(var.attributes, []))))
+    tags                      = merge(coalesce(var.context.tags, {}), coalesce(var.tags, {}))
   }
 
   # Coalesce to defaults so an explicit null (as a variable or via context) can't
   # break the conditionals below (Terraform requires a non-null bool there).
-  enabled        = local.input.enabled == null ? local.defaults.enabled : local.input.enabled
-  non_prd        = local.input.non_prd == null ? local.defaults.non_prd : local.input.non_prd
-  prefix_enabled = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
-  delimiter      = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
+  enabled                   = local.input.enabled == null ? local.defaults.enabled : local.input.enabled
+  non_prd                   = local.input.non_prd == null ? local.defaults.non_prd : local.input.non_prd
+  prefix_enabled            = local.input.prefix_enabled == null ? local.defaults.prefix_enabled : local.input.prefix_enabled
+  stack_name_enabled        = local.input.stack_name_enabled == null ? local.defaults.stack_name_enabled : local.input.stack_name_enabled
+  owner_propagation_enabled = local.input.owner_propagation_enabled == null ? local.defaults.owner_propagation_enabled : local.input.owner_propagation_enabled
+  delimiter                 = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
 
   # deployment_region derived from aws_region when not set explicitly: split the
   # region on "-" and join <part0><first-letter-of-part1><part2>, so
@@ -138,7 +144,7 @@ locals {
     (join(local.tag_delimiter, compact([local.tag_prefix, "project"])))     = local.hierarchy_project
     (join(local.tag_delimiter, compact([local.tag_prefix, "application"]))) = local.hierarchy_application
     (join(local.tag_delimiter, compact([local.tag_prefix, "module"])))      = local.hierarchy_module
-    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.stack_name
+    (join(local.tag_delimiter, compact([local.tag_prefix, "stack-name"])))  = local.stack_name_enabled ? local.stack_name : ""
     (join(local.tag_delimiter, compact([local.tag_prefix, "environment"]))) = local.prefix
     (join(local.tag_delimiter, compact([local.tag_prefix, "owner"])))       = local.owner
     "Name"                                                                  = local.id_full
@@ -169,27 +175,31 @@ locals {
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
+  # owner is withheld (null) when owner_propagation_enabled = false, so child
+  # labels do not silently adopt the parent's owner and must state their own.
   output_context = {
-    enabled              = local.enabled
-    country              = local.input.country
-    stage                = local.input.stage
-    aws_region           = local.input.aws_region
-    deployment_region    = local.input.deployment_region
-    project              = local.input.project
-    application          = local.input.application
-    module               = local.input.module
-    stack_suffix         = local.input.stack_suffix
-    owner                = local.input.owner
-    name                 = local.input.name
-    attributes           = local.input.attributes
-    non_prd              = local.non_prd
-    delimiter            = local.delimiter
-    prefix_enabled       = local.prefix_enabled
-    tag_prefix           = local.tag_prefix
-    tag_delimiter        = local.tag_delimiter
-    id_length_limit      = local.id_length_limit
-    max_tag_key_length   = local.max_tag_key_length
-    max_tag_value_length = local.max_tag_value_length
-    tags                 = local.input.tags
+    enabled                   = local.enabled
+    country                   = local.input.country
+    stage                     = local.input.stage
+    aws_region                = local.input.aws_region
+    deployment_region         = local.input.deployment_region
+    project                   = local.input.project
+    application               = local.input.application
+    module                    = local.input.module
+    stack_suffix              = local.input.stack_suffix
+    stack_name_enabled        = local.stack_name_enabled
+    owner                     = local.owner_propagation_enabled ? local.input.owner : null
+    owner_propagation_enabled = local.owner_propagation_enabled
+    name                      = local.input.name
+    attributes                = local.input.attributes
+    non_prd                   = local.non_prd
+    delimiter                 = local.delimiter
+    prefix_enabled            = local.prefix_enabled
+    tag_prefix                = local.tag_prefix
+    tag_delimiter             = local.tag_delimiter
+    id_length_limit           = local.id_length_limit
+    max_tag_key_length        = local.max_tag_key_length
+    max_tag_value_length      = local.max_tag_value_length
+    tags                      = local.input.tags
   }
 }
