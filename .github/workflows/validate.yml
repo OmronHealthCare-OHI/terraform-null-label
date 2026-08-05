@@ -57,7 +57,7 @@ jobs:
           deduplicate_classes_by_file_name: false
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: terraform-test-results
