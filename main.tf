@@ -26,18 +26,21 @@ locals {
   # Explicit variables override the inherited context (null = inherit).
   # attributes and tags are merged (context first, then explicit value).
   input = {
-    enabled                   = var.enabled == null ? var.context.enabled : var.enabled
-    country                   = var.country == null ? var.context.country : var.country
-    stage                     = var.stage == null ? var.context.stage : var.stage
-    aws_region                = var.aws_region == null ? var.context.aws_region : var.aws_region
-    deployment_region         = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
-    project                   = var.project == null ? var.context.project : var.project
-    application               = var.application == null ? var.context.application : var.application
-    module                    = var.module == null ? var.context.module : var.module
-    stack_suffix              = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
-    stack_name_enabled        = var.stack_name_enabled == null ? var.context.stack_name_enabled : var.stack_name_enabled
-    owner                     = var.owner == null ? var.context.owner : var.owner
-    owner_propagation_enabled = var.owner_propagation_enabled == null ? var.context.owner_propagation_enabled : var.owner_propagation_enabled
+    enabled            = var.enabled == null ? var.context.enabled : var.enabled
+    country            = var.country == null ? var.context.country : var.country
+    stage              = var.stage == null ? var.context.stage : var.stage
+    aws_region         = var.aws_region == null ? var.context.aws_region : var.aws_region
+    deployment_region  = var.deployment_region == null ? var.context.deployment_region : var.deployment_region
+    project            = var.project == null ? var.context.project : var.project
+    application        = var.application == null ? var.context.application : var.application
+    module             = var.module == null ? var.context.module : var.module
+    stack_suffix       = var.stack_suffix == null ? var.context.stack_suffix : var.stack_suffix
+    stack_name_enabled = var.stack_name_enabled == null ? var.context.stack_name_enabled : var.stack_name_enabled
+    owner              = var.owner == null ? var.context.owner : var.owner
+    # Deliberately NOT read from context: owner_propagation_enabled is a
+    # one-level ownership reset. It is not part of the context object, so a
+    # parent's reset can never silently disable owner propagation for a child.
+    owner_propagation_enabled = var.owner_propagation_enabled
     name                      = var.name == null ? var.context.name : var.name
     non_prd                   = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter                 = var.delimiter == null ? var.context.delimiter : var.delimiter
@@ -177,29 +180,31 @@ locals {
   # user-supplied tags only; each level re-derives ohi:*/Name from the fields.
   # owner is withheld (null) when owner_propagation_enabled = false, so child
   # labels do not silently adopt the parent's owner and must state their own.
+  # The toggle itself is deliberately absent: it is a ONE-LEVEL reset, so a
+  # child that states its own owner propagates it onward normally. (Contrast
+  # stack_name_enabled, which does inherit via context by design.)
   output_context = {
-    enabled                   = local.enabled
-    country                   = local.input.country
-    stage                     = local.input.stage
-    aws_region                = local.input.aws_region
-    deployment_region         = local.input.deployment_region
-    project                   = local.input.project
-    application               = local.input.application
-    module                    = local.input.module
-    stack_suffix              = local.input.stack_suffix
-    stack_name_enabled        = local.stack_name_enabled
-    owner                     = local.owner_propagation_enabled ? local.input.owner : null
-    owner_propagation_enabled = local.owner_propagation_enabled
-    name                      = local.input.name
-    attributes                = local.input.attributes
-    non_prd                   = local.non_prd
-    delimiter                 = local.delimiter
-    prefix_enabled            = local.prefix_enabled
-    tag_prefix                = local.tag_prefix
-    tag_delimiter             = local.tag_delimiter
-    id_length_limit           = local.id_length_limit
-    max_tag_key_length        = local.max_tag_key_length
-    max_tag_value_length      = local.max_tag_value_length
-    tags                      = local.input.tags
+    enabled              = local.enabled
+    country              = local.input.country
+    stage                = local.input.stage
+    aws_region           = local.input.aws_region
+    deployment_region    = local.input.deployment_region
+    project              = local.input.project
+    application          = local.input.application
+    module               = local.input.module
+    stack_suffix         = local.input.stack_suffix
+    stack_name_enabled   = local.stack_name_enabled
+    owner                = local.owner_propagation_enabled ? local.input.owner : null
+    name                 = local.input.name
+    attributes           = local.input.attributes
+    non_prd              = local.non_prd
+    delimiter            = local.delimiter
+    prefix_enabled       = local.prefix_enabled
+    tag_prefix           = local.tag_prefix
+    tag_delimiter        = local.tag_delimiter
+    id_length_limit      = local.id_length_limit
+    max_tag_key_length   = local.max_tag_key_length
+    max_tag_value_length = local.max_tag_value_length
+    tags                 = local.input.tags
   }
 }
