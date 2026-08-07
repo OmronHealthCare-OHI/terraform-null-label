@@ -9,29 +9,28 @@
 variable "context" {
   description = "Inherited label context from a parent module invocation. Explicit variables override matching context fields; attributes and tags are merged."
   type = object({
-    enabled                   = optional(bool, true)
-    country                   = optional(string, null)
-    stage                     = optional(string, null)
-    aws_region                = optional(string, null)
-    deployment_region         = optional(string, null)
-    project                   = optional(string, null)
-    application               = optional(string, null)
-    module                    = optional(string, null)
-    stack_suffix              = optional(string, null)
-    stack_name_enabled        = optional(bool, true)
-    owner                     = optional(string, null)
-    owner_propagation_enabled = optional(bool, true)
-    name                      = optional(string, null)
-    attributes                = optional(list(string), [])
-    non_prd                   = optional(bool, false)
-    delimiter                 = optional(string, "-")
-    prefix_enabled            = optional(bool, true)
-    tag_prefix                = optional(string, "ohi")
-    tag_delimiter             = optional(string, ":")
-    id_length_limit           = optional(number, null)
-    max_tag_key_length        = optional(number, null)
-    max_tag_value_length      = optional(number, null)
-    tags                      = optional(map(string), {})
+    enabled              = optional(bool, true)
+    country              = optional(string, null)
+    stage                = optional(string, null)
+    aws_region           = optional(string, null)
+    deployment_region    = optional(string, null)
+    project              = optional(string, null)
+    application          = optional(string, null)
+    module               = optional(string, null)
+    stack_suffix         = optional(string, null)
+    stack_name_enabled   = optional(bool, true)
+    owner                = optional(string, null)
+    name                 = optional(string, null)
+    attributes           = optional(list(string), [])
+    non_prd              = optional(bool, false)
+    delimiter            = optional(string, "-")
+    prefix_enabled       = optional(bool, true)
+    tag_prefix           = optional(string, "ohi")
+    tag_delimiter        = optional(string, ":")
+    id_length_limit      = optional(number, null)
+    max_tag_key_length   = optional(number, null)
+    max_tag_value_length = optional(number, null)
+    tags                 = optional(map(string), {})
   })
   default = {}
 }
@@ -130,7 +129,7 @@ variable "owner" {
 }
 
 variable "owner_propagation_enabled" {
-  description = "When true (default) owner is carried into the exported context, so child labels inherit it. Set to false to withhold owner from the context: this label still emits its own ohi:owner tag, but child labels start without an owner and must state their own explicitly. The toggle itself is inherited via context, so the discipline carries down a chain; null inherits from context."
+  description = "When true (default) owner is carried into the exported context, so child labels inherit it. Set to false to withhold owner from the context: this label still emits its own ohi:owner tag, but child labels start without an owner and must state their own explicitly. This is a ONE-LEVEL ownership reset: unlike stack_name_enabled, the toggle itself is NOT part of the context and does not travel — a child that states its own owner propagates it to its children normally. null means the default (true)."
   type        = bool
   default     = null
 }

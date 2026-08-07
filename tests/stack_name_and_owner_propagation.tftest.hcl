@@ -84,14 +84,19 @@ run "owner_withheld_from_context_when_propagation_disabled" {
     error_message = "disabling propagation should not drop this label's own ohi:owner tag"
   }
 
-  # ...but the exported context carries no owner, and carries the toggle.
+  # ...but the exported context carries no owner.
   assert {
     condition     = output.context.owner == null
     error_message = "owner should be withheld from the exported context when owner_propagation_enabled = false"
   }
+
+  # owner_propagation_enabled is a ONE-LEVEL ownership reset — it must never
+  # travel via context, or one reset high in the tree silently disables owner
+  # propagation for the whole subtree. The context drops `owner`; the toggle
+  # itself stays local.
   assert {
-    condition     = output.context.owner_propagation_enabled == false
-    error_message = "owner_propagation_enabled = false should be exported via context"
+    condition     = !contains(keys(output.context), "owner_propagation_enabled")
+    error_message = "owner_propagation_enabled must not be part of the exported context — it is a one-level ownership reset"
   }
 }
 
@@ -125,5 +130,12 @@ run "chain_owner_not_adopted_and_stack_name_stays_disabled" {
   assert {
     condition     = output.owned_child_tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile-be"
     error_message = "a child setting stack_name_enabled = true should emit ohi:stack-name again"
+  }
+
+  # The reset is ONE level deep: the parent's toggle does not travel, so a
+  # child that states its own owner exports it to grandchildren normally.
+  assert {
+    condition     = output.owned_child_context.owner == "other-circle"
+    error_message = "the parent's owner_propagation_enabled = false must not carry down — a child stating its own owner should export it via context"
   }
 }
