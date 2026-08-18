@@ -32,6 +32,26 @@ jobs:
     uses: ./.github/workflows/validate.yml
     with:
       terraform_version: ${{ matrix.terraform_version }}
-      is_primary: ${{ matrix.terraform_version == 'latest' }}
+      publish_comment: ${{ matrix.terraform_version == 'latest' }}
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Checkov findings do not depend on the Terraform version, so this runs once,
+  # outside the matrix. It used to run inside it, gated on the leg being
+  # "latest" -- so pinning the matrix to explicit versions would have dropped
+  # the only primary leg and stopped scanning silently, with the build green.
+  checkov:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Checkov validation
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          # CLI output to the console only (no SARIF file is produced with this config)
+          output_format: cli
+          output_file_path: console
+          config_file: .checkov-config.yml
