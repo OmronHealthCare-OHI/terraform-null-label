@@ -26,4 +26,5 @@ terraform.rc
 # Lock files for example/test configs (module lock is not committed)
 .terraform.lock.hcl
 
-.idea
+# IDE settings
+.idea/

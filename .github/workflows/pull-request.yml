@@ -22,7 +22,15 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Testing only latest hid a validation bug that broke every consumer on 1.10,
+  # which is what the deployment pipeline pins.
   validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        terraform_version: ["1.10.5", "latest"]
     uses: ./.github/workflows/validate.yml
+    with:
+      terraform_version: ${{ matrix.terraform_version }}
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
