@@ -12,6 +12,11 @@ on:
         type: string
         description: "Terraform version to test against. Consumers pin older versions than latest, and validation short-circuiting differs between them."
         default: "latest"
+      is_primary:
+        required: false
+        type: boolean
+        description: "Primary leg: publishes the PR comment and runs Checkov. Exactly one caller leg should set this."
+        default: true
     secrets:
       GH_TOKEN:
         required: true
@@ -68,8 +73,8 @@ jobs:
           files: |
             ${{inputs.terraform_directory}}/test-results.xml
           check_name: Terraform Test Results (${{ inputs.terraform_version }})
-          # One comment, from the latest leg only, or every version posts its own.
-          comment_mode: ${{ inputs.terraform_version == 'latest' && 'always' || 'off' }}
+          # One comment, from the primary leg only, or every version posts its own.
+          comment_mode: ${{ inputs.is_primary && 'always' || 'off' }}
           deduplicate_classes_by_file_name: false
 
       - name: Upload Test Results
@@ -80,10 +85,10 @@ jobs:
           path: ${{inputs.terraform_directory}}/test-results.xml
           retention-days: 30
 
-      # Findings do not depend on the Terraform version, so one leg runs it.
+      # Findings do not depend on the Terraform version, so only one leg runs it.
       - name: Checkov validation
         id: checkov
-        if: inputs.terraform_version == 'latest'
+        if: inputs.is_primary
         uses: bridgecrewio/checkov-action@v12
         with:
           # CLI output to the console only (no SARIF file is produced with this config)

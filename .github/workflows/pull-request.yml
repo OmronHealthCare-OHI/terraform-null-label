@@ -32,5 +32,6 @@ jobs:
     uses: ./.github/workflows/validate.yml
     with:
       terraform_version: ${{ matrix.terraform_version }}
+      is_primary: ${{ matrix.terraform_version == 'latest' }}
     secrets:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
