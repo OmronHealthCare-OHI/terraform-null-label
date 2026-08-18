@@ -60,10 +60,11 @@ categories:
       - chore
     collapse-after: 5
 
+# An excluded label drops the whole PR, even when it also carries a category one.
+# Nothing the labeler applies by file path belongs here.
 exclude-labels:
   - skip-changelog
   - internal
-  - "build definition"
   - "AI: instructions"
   - "AI: agents"
 
