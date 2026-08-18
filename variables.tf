@@ -55,7 +55,7 @@ variable "stage" {
   default     = null
 
   validation {
-    condition     = var.stage == null || contains(["dev", "qa", "stg", "prd"], var.stage)
+    condition     = var.stage == null ? true : contains(["dev", "qa", "stg", "prd"], var.stage)
     error_message = "The stage must be one of: dev, qa, stg, prd."
   }
 }
@@ -66,7 +66,7 @@ variable "aws_region" {
   default     = null
 
   validation {
-    condition     = var.aws_region == null || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
+    condition     = var.aws_region == null ? true : can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
     error_message = "The aws_region must be a valid AWS region code, e.g. us-west-2, eu-central-1, ap-northeast-1."
   }
 }
@@ -166,11 +166,11 @@ variable "tag_prefix" {
   default     = null
 
   validation {
-    condition     = var.tag_prefix == null || lower(var.tag_prefix) != "aws"
+    condition     = var.tag_prefix == null ? true : lower(var.tag_prefix) != "aws"
     error_message = "Do not use AWS: or any upper or lowercase combination of such as a prefix for either keys or values. These are reserved only for AWS use."
   }
   validation {
-    condition     = var.tag_prefix == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_prefix))
+    condition     = var.tag_prefix == null ? true : can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_prefix))
     error_message = "The tag_prefix may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
   }
 }
@@ -181,7 +181,7 @@ variable "tag_delimiter" {
   default     = null
 
   validation {
-    condition     = var.tag_delimiter == null || can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_delimiter))
+    condition     = var.tag_delimiter == null ? true : can(regex("^[\\p{L}\\p{N} _.:/=+@-]*$", var.tag_delimiter))
     error_message = "The tag_delimiter may only contain letters, numbers, spaces and _ . : / = + - @ (the characters AWS allows in tag keys)."
   }
 }
@@ -192,7 +192,7 @@ variable "id_length_limit" {
   default     = null
 
   validation {
-    condition     = var.id_length_limit == null || var.id_length_limit == 0 || var.id_length_limit >= 6
+    condition     = var.id_length_limit == null ? true : (var.id_length_limit == 0 || var.id_length_limit >= 6)
     error_message = "The id_length_limit must be >= 6 when set, or 0 for unlimited length."
   }
 }
@@ -203,7 +203,7 @@ variable "max_tag_key_length" {
   default     = null
 
   validation {
-    condition     = var.max_tag_key_length == null || (var.max_tag_key_length >= 1 && var.max_tag_key_length <= 128)
+    condition     = var.max_tag_key_length == null ? true : (var.max_tag_key_length >= 1 && var.max_tag_key_length <= 128)
     error_message = "The max_tag_key_length must be between 1 and 128 (the AWS ceiling)."
   }
 }
@@ -214,7 +214,7 @@ variable "max_tag_value_length" {
   default     = null
 
   validation {
-    condition     = var.max_tag_value_length == null || (var.max_tag_value_length >= 6 && var.max_tag_value_length <= 256)
+    condition     = var.max_tag_value_length == null ? true : (var.max_tag_value_length >= 6 && var.max_tag_value_length <= 256)
     error_message = "The max_tag_value_length must be between 6 and 256 (the AWS ceiling), leaving room for the 5-char truncation hash."
   }
 }
