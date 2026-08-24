@@ -9,7 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+    with:
+      ref: ${{ github.event.release.tag_name }}
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   promote_release:
+    needs: validate
     uses: ./.github/workflows/promote-release.yml
     with:
       type: latest
