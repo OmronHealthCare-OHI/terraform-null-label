@@ -58,8 +58,8 @@ output "tags" {
     error_message = "Tag values may only contain letters, numbers, spaces and _ . : / = + - @. Offending keys: ${join(", ", local.invalid_value_keys)}."
   }
   precondition {
-    condition     = !local.enabled || local.user_tag_count <= local.max_user_tags
-    error_message = "A resource may have at most ${local.max_user_tags} user-created tags; got ${local.user_tag_count}."
+    condition     = !local.enabled || local.emitted_tag_count <= local.max_user_tags
+    error_message = "A resource may have at most ${local.max_user_tags} tags (generated ohi:*/CloudPosse tags count too); the label would emit ${local.emitted_tag_count}."
   }
 }
 

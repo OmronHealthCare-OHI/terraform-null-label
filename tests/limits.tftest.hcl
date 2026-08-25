@@ -151,10 +151,11 @@ run "empty_tag_key_rejected" {
 run "too_many_user_tags_rejected" {
   command = plan
 
-  # 51 user tags exceeds the 50-tag limit.
+  # 49 user tags + 2 generated (Namespace, Name) = 51 total, over the 50 limit.
+  # The limit counts the full emitted map, not just user tags.
   variables {
     namespace = "cnct"
-    tags      = { for i in range(51) : "key-${i}" => "v" }
+    tags      = { for i in range(49) : "key-${i}" => "v" }
   }
 
   expect_failures = [output.tags]
@@ -163,14 +164,19 @@ run "too_many_user_tags_rejected" {
 run "fifty_user_tags_allowed" {
   command = plan
 
+  # 48 user + 2 generated (Namespace, Name) = exactly 50 emitted tags: allowed.
   variables {
     namespace = "cnct"
-    tags      = { for i in range(50) : "key-${i}" => "v" }
+    tags      = { for i in range(48) : "key-${i}" => "v" }
   }
 
   assert {
     condition     = output.tags["key-0"] == "v"
-    error_message = "exactly 50 user tags should be allowed"
+    error_message = "exactly 50 emitted tags (48 user + 2 generated) should be allowed"
+  }
+  assert {
+    condition     = length(output.tags) == 50
+    error_message = "the emitted map should be exactly 50 tags, got ${length(output.tags)}"
   }
 }
 
@@ -295,11 +301,12 @@ run "max_tag_value_length_out_of_range_rejected" {
 run "empty_valued_user_tags_not_counted" {
   command = plan
 
-  # 51 user tags, but 2 have empty values (dropped) -> 49 emitted, under the cap.
+  # 47 non-empty + 2 empty (dropped) + 2 generated = 49 emitted, under the cap.
+  # Empty-valued tags are dropped from the emitted map and so never count.
   variables {
     namespace = "cnct"
     tags = merge(
-      { for i in range(49) : "key-${i}" => "v" },
+      { for i in range(47) : "key-${i}" => "v" },
       { "empty-a" = "", "empty-b" = "" },
     )
   }
@@ -310,7 +317,7 @@ run "empty_valued_user_tags_not_counted" {
   }
   assert {
     condition     = output.tags["key-0"] == "v"
-    error_message = "51 declared tags with 2 empty values (49 emitted) should be allowed"
+    error_message = "49 declared non-empty + 2 empty (dropped) should be allowed"
   }
 }
 

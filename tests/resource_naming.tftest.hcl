@@ -70,6 +70,38 @@ run "full_label" {
     condition     = output.tags["Name"] == "cnct-uk-prd-mobile-api-v1"
     error_message = "Name tag should equal the id"
   }
+  assert {
+    condition     = !contains(keys(output.tags), "Attributes")
+    error_message = "attributes belong in the id, not as an undocumented Attributes tag (labels_as_tags is pinned)"
+  }
+}
+
+run "namespace_required" {
+  command = plan
+
+  variables {
+    region = "uk"
+    stage  = "prd"
+    name   = "api"
+    # no namespace, via variable or context
+  }
+
+  expect_failures = [output.id]
+}
+
+run "namespace_normalizing_to_empty_rejected" {
+  command = plan
+
+  # "_" is non-empty as a raw input but CloudPosse normalizes it to empty; the
+  # precondition checks the normalized output, so this is rejected.
+  variables {
+    namespace = "_"
+    region    = "uk"
+    stage     = "prd"
+    name      = "api"
+  }
+
+  expect_failures = [output.id]
 }
 
 run "eu_stg_region" {

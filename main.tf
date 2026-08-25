@@ -115,9 +115,11 @@ locals {
   }
   ohi_tags = { for k, v in local.ohi_tags_all : k => v if v != null && v != "" }
 
-  # Merge CloudPosse's standard tags (Namespace/Environment/Stage/Name) with the
-  # ohi:* tags and the user tags, then drop empty-value entries.
-  tags_raw = local.enabled ? { for k, v in merge(module.cloudposse_label.tags, local.ohi_tags, local.input.tags) : k => v if v != null && v != "" } : {}
+  # Merge user tags FIRST, then the generated tags (CloudPosse standard +
+  # ohi:*), so the generated, authoritative tags win on any key collision — a
+  # caller cannot overwrite or clear Stage/Namespace/Environment/Name via `tags`.
+  # Then drop empty-value entries.
+  tags_raw = local.enabled ? { for k, v in merge(local.input.tags, module.cloudposse_label.tags, local.ohi_tags) : k => v if v != null && v != "" } : {}
 
   # Cap tag values at max_tag_value_length Unicode characters: over-long values
   # are truncated to (limit - hash) characters plus a short md5 hash of the
@@ -133,14 +135,18 @@ locals {
   invalid_char_keys    = [for k in local.tag_keys : k if !can(regex(local.tag_allowed_chars_regex, k))]
   reserved_prefix_keys = [for k in local.tag_keys : k if substr(lower(k), 0, 4) == "aws:"]
   invalid_value_keys   = [for k, v in local.tags_raw : k if !can(regex(local.tag_allowed_chars_regex, v))]
-  # Count only non-empty user tags: empty-valued entries are dropped and never
-  # emitted, so they must not count toward the 50-tag limit.
-  user_tag_count = length([for k, v in local.input.tags : k if v != null && v != ""])
+  # AWS caps a resource at 50 user-created tags, and the generated CloudPosse +
+  # ohi:* tags count too — so the limit is enforced against the FINAL emitted
+  # map, not just the caller's `tags`. Empty-valued entries are already dropped
+  # from local.tags, so they never count.
+  emitted_tag_count = length(local.tags)
 
   # namespace is required (via variable or context) when the label is enabled —
-  # CloudPosse's id and Namespace tag both depend on it. Surfaced as the id
-  # precondition.
-  namespace_present = !local.enabled || local.namespace != ""
+  # CloudPosse's id and Namespace tag both depend on it. Checked against the
+  # NORMALIZED CloudPosse output, so an input that normalizes to empty (e.g.
+  # "_") is rejected rather than silently producing no namespace. Surfaced as
+  # the id precondition.
+  namespace_present = !local.enabled || module.cloudposse_label.namespace != ""
 
   # Context to pass to child label modules. Carries the semantic fields and the
   # user-supplied tags only; each level re-derives CloudPosse id + ohi:*/Name
@@ -188,6 +194,11 @@ module "cloudposse_label" {
 
   # <namespace>-<region>-<stage>-<name>-<attributes>. region -> environment,
   # stage_segment -> stage. tenant is unused.
-  label_order     = ["namespace", "environment", "stage", "name", "attributes"]
+  label_order = ["namespace", "environment", "stage", "name", "attributes"]
+
+  # Emit ONLY the advertised standard tags. CloudPosse defaults labels_as_tags to
+  # every label (which would leak an undocumented Attributes tag, and Tenant);
+  # attributes still appear in the id, just not as their own tag.
+  labels_as_tags  = ["namespace", "environment", "stage", "name"]
   id_length_limit = local.id_length_limit
 }
