@@ -1,35 +1,34 @@
 # Partial label — only the fields that are set are emitted; the rest are omitted.
 
-run "org_level_partial" {
+run "namespace_level_partial" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = "mobile"
+    namespace   = "cnct"
+    region      = "uk"
+    stage       = "prd"
+    application = "mobile"
     # no module, stack_suffix, or name
   }
 
   assert {
-    condition     = output.id == "usstg-usw2-vlt-mobile"
-    error_message = "a nameless label composes the hierarchy: <PREFIX>-<project>-<application>, got ${output.id}"
+    condition     = output.id == "cnct-uk-prd-mobile"
+    error_message = "a nameless label composes the hierarchy: <namespace>-<region>-<stage>-<application>, got ${output.id}"
   }
   assert {
-    condition     = output.tags["ohi:project"] == "vlt" && output.tags["ohi:application"] == "vlt-mobile"
-    error_message = "set hierarchy tags should be present"
+    condition     = output.tags["ohi:application"] == "mobile"
+    error_message = "set hierarchy tag should be present"
   }
   assert {
-    condition     = output.tags["ohi:environment"] == "usstg-usw2"
-    error_message = "ohi:environment should be the prefix"
+    condition     = output.tags["Stage"] == "prd"
+    error_message = "Stage tag should be present"
   }
   assert {
     condition     = !contains(keys(output.tags), "ohi:module")
     error_message = "unset module tag should be omitted"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile"
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-mobile"
     error_message = "ohi:stack-name derives from the deepest set hierarchy (here application), got ${output.tags["ohi:stack-name"]}"
   }
   assert {
@@ -38,33 +37,29 @@ run "org_level_partial" {
   }
 }
 
-run "only_project" {
+run "only_namespace" {
   command = plan
 
   variables {
-    project = "vlt"
-    # no prefix parts, no name
+    namespace = "cnct"
+    # no region/stage, no name
   }
 
   assert {
-    condition     = output.id == "vlt"
-    error_message = "with no prefix parts and no name, the id is just the hierarchy (vlt), got ${output.id}"
+    condition     = output.id == "cnct"
+    error_message = "with only a namespace and no name, the id is just the namespace (cnct), got ${output.id}"
   }
   assert {
-    condition     = output.tags["ohi:project"] == "vlt"
-    error_message = "ohi:project should be present"
+    condition     = output.tags["Namespace"] == "cnct"
+    error_message = "Namespace tag should be present"
   }
   assert {
-    condition     = output.tags["Name"] == "vlt"
-    error_message = "Name should equal the id (vlt)"
+    condition     = output.tags["Name"] == "cnct"
+    error_message = "Name should equal the id (cnct)"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "vlt"
-    error_message = "ohi:stack-name derives from the deepest hierarchy (project), got ${output.tags["ohi:stack-name"]}"
-  }
-  assert {
-    condition     = length(output.tags) == 3
-    error_message = "ohi:project + Name + ohi:stack-name should be emitted (no stage), got ${length(output.tags)} tags"
+    condition     = !contains(keys(output.tags), "ohi:stack-name")
+    error_message = "with no application/module hierarchy, ohi:stack-name should be omitted"
   }
 }
 
@@ -72,12 +67,11 @@ run "disabled" {
   command = plan
 
   variables {
-    enabled           = false
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    name              = "vlt-mobile-api"
+    enabled   = false
+    namespace = "cnct"
+    region    = "uk"
+    stage     = "prd"
+    name      = "api"
   }
 
   assert {

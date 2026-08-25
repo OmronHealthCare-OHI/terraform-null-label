@@ -1,20 +1,27 @@
-# OMRON null-label — CloudPosse-null-label-style labeling that follows the
-# OMRON (Voltron) Cloud Tagging Convention.
+# OMRON null-label — wraps CloudPosse null-label for id/name generation and
+# layers the OMRON (Voltron) Cloud Tagging Convention (ohi:* tags) on top.
 #
 # Every label field is optional so a parent label can set some fields and pass
 # its `context` to child labels, which inherit the parent's values and override
 # only what they need. Explicit variables always win over the inherited context;
 # `attributes` and `tags` are merged (context first, then the explicit value).
+#
+# id shape (CloudPosse label_order): <namespace>-<region>-<stage>-<name>-<attributes>
+#   e.g. cnct-uk-prd-mobile-api
+#   - namespace : product token (cnct/crt/luscii) — REQUIRED (var or context)
+#   - region    : logical region (us/eu/uk), linked to an AWS region
+#   - stage     : dev/qa/stg/prd, or "np" when non_prd = true
+#   - name      : composed <application>-<name> leaf hierarchy
+# The AWS region is NOT part of the id — it is emitted as the ohi:aws-region tag.
 
 variable "context" {
   description = "Inherited label context from a parent module invocation. Explicit variables override matching context fields; attributes and tags are merged."
   type = object({
     enabled              = optional(bool, true)
-    country              = optional(string, null)
+    namespace            = optional(string, null)
+    region               = optional(string, null)
     stage                = optional(string, null)
     aws_region           = optional(string, null)
-    deployment_region    = optional(string, null)
-    project              = optional(string, null)
     application          = optional(string, null)
     module               = optional(string, null)
     stack_suffix         = optional(string, null)
@@ -24,7 +31,6 @@ variable "context" {
     attributes           = optional(list(string), [])
     non_prd              = optional(bool, false)
     delimiter            = optional(string, "-")
-    prefix_enabled       = optional(bool, true)
     tag_prefix           = optional(string, "ohi")
     tag_delimiter        = optional(string, ":")
     id_length_limit      = optional(number, null)
@@ -41,16 +47,22 @@ variable "enabled" {
   default     = null
 }
 
-# --- PREFIX parts: <country><stage>-<deployment_region>, e.g. usstg-usw2 ---
+# --- id segments: <namespace>-<region>-<stage> ---
 
-variable "country" {
-  description = "Country code, e.g. us, eu, jp, in, sg, br."
+variable "namespace" {
+  description = "Product namespace and leading id segment, e.g. cnct (Connect), crt (Create), luscii. REQUIRED: must resolve from this variable or the inherited context when enabled."
+  type        = string
+  default     = null
+}
+
+variable "region" {
+  description = "Logical region code (the geo identifier in the id), e.g. us, eu, uk. Each logical region maps to an AWS region (us->us-east-1, eu->eu-central-1, uk->eu-west-2) and is extensible. This is NOT the AWS region code — set aws_region for that."
   type        = string
   default     = null
 }
 
 variable "stage" {
-  description = "Stage code, e.g. dev, qa, stg, prd. Ignored for the stage segment when non_prd = true."
+  description = "Stage code, e.g. dev, qa, stg, prd. Becomes \"np\" in the id/Stage tag when non_prd = true."
   type        = string
   default     = null
 
@@ -60,62 +72,50 @@ variable "stage" {
   }
 }
 
+variable "non_prd" {
+  description = "When true, the stage segment becomes \"np\" so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage."
+  type        = bool
+  default     = null
+}
+
 variable "aws_region" {
-  description = "AWS region code, e.g. us-west-2, eu-west-1, ap-northeast-1. When deployment_region is not set, the PREFIX region segment is derived from this value."
+  description = "AWS region code, e.g. us-east-1, eu-central-1, eu-west-2. Emitted as the ohi:aws-region tag; NOT part of the id (through account navigation the AWS region is already a given)."
   type        = string
   default     = null
 
   validation {
     condition     = var.aws_region == null ? true : can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.aws_region))
-    error_message = "The aws_region must be a valid AWS region code, e.g. us-west-2, eu-central-1, ap-northeast-1."
+    error_message = "The aws_region must be a valid AWS region code, e.g. us-east-1, eu-central-1, eu-west-2."
   }
 }
 
-variable "deployment_region" {
-  description = "Deployment region short code, e.g. usw2, euw1, apn1. Overwrites the AWS region code for the PREFIX segment. When null, it is derived from aws_region."
-  type        = string
-  default     = null
-}
-
-variable "non_prd" {
-  description = "When true, the stage segment becomes <country>np (e.g. usnp) so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage."
-  type        = bool
-  default     = null
-}
-
-# --- Tag hierarchy (composed by nesting) ---
-# The ohi:* values nest: ohi:project = <project>; ohi:application =
-# <project>-<application>; ohi:module = <project>-<application>-<module>;
-# ohi:stack-name = <PREFIX>-<project>-<stack_suffix>. Each segment is optional
-# (empty segments are dropped), so the default/infra set is `project=vlt,
-# application="", module="infra"` -> ohi:application=vlt, ohi:module=vlt-infra.
-
-variable "project" {
-  description = "Top of the tag hierarchy and the leading segment of every ohi:* value, e.g. vlt, common."
-  type        = string
-  default     = null
-}
+# --- Tag hierarchy (under the namespace/product) ---
+# `namespace` is the product identity (e.g. cnct = Connect/voltron), emitted as
+# CloudPosse's Namespace tag — there is no separate `project` field. Below it:
+# ohi:application = <application>; ohi:module = <application>-<module>. The
+# <application>-<name> leaf feeds CloudPosse's `name` component, so `application`
+# appears in the id; `module` does not (it lives only in the ohi:module tag).
 
 variable "application" {
-  description = "Application segment appended to project to form ohi:application (e.g. \"mobile\" -> vlt-mobile). Leave empty when the application equals the project (e.g. the infra set)."
+  description = "Application segment under the namespace, e.g. \"mobile\" -> ohi:application = mobile, and the leading part of the id name (cnct-uk-prd-mobile-...). Leave empty for namespace-level (e.g. shared infra)."
   type        = string
   default     = null
 }
 
 variable "module" {
-  description = "Module segment appended to form ohi:module (e.g. \"be\" -> vlt-mobile-be, \"infra\" -> vlt-infra)."
+  description = "Module segment appended to application to form ohi:module (e.g. \"be\" under application \"mobile\" -> mobile-be). Not part of the id."
   type        = string
   default     = null
 }
 
 variable "stack_suffix" {
-  description = "OPTIONAL override for ohi:stack-name. By default ohi:stack-name is derived as <PREFIX>-<deepest hierarchy> (module, else application, else project), so this is NOT needed for normal use. Set it only to pin an exact value <PREFIX>-<stack_suffix> when something external depends on a specific stack name; it can be removed from the module if nobody uses it."
+  description = "OPTIONAL override for ohi:stack-name. By default ohi:stack-name is <namespace>-<region>-<stage>-<deepest hierarchy> (module, else application). Set it only to pin an exact leaf when something external depends on a specific stack name."
   type        = string
   default     = null
 }
 
 variable "stack_name_enabled" {
-  description = "When true (default) the ohi:stack-name tag is emitted (derived from the hierarchy, or pinned via stack_suffix). Set to false to drop the tag for labels where a stack name is not meaningful. Inherited by child labels via context; null inherits from context."
+  description = "When true (default) the ohi:stack-name tag is emitted. Set to false to drop the tag for labels where a stack name is not meaningful. Inherited by child labels via context; null inherits from context."
   type        = bool
   default     = null
 }
@@ -123,13 +123,13 @@ variable "stack_name_enabled" {
 # --- Ownership ---
 
 variable "owner" {
-  description = "The circle that controls the resource. Emitted as the ohi:owner tag (subject to tag_prefix/tag_delimiter). Not part of the id or the ohi:* naming hierarchy."
+  description = "The circle that controls the resource. Emitted as the ohi:owner tag (subject to tag_prefix/tag_delimiter). Not part of the id."
   type        = string
   default     = null
 }
 
 variable "owner_propagation_enabled" {
-  description = "When true (default) owner is carried into the exported context, so child labels inherit it. Set to false to withhold owner from the context: this label still emits its own ohi:owner tag, but child labels start without an owner and must state their own explicitly. This is a ONE-LEVEL ownership reset: unlike stack_name_enabled, the toggle itself is NOT part of the context and does not travel — a child that states its own owner propagates it to its children normally. null means the default (true)."
+  description = "When true (default) owner is carried into the exported context, so child labels inherit it. Set to false to withhold owner from the context: this label still emits its own ohi:owner tag, but child labels start without an owner and must state their own explicitly. This is a ONE-LEVEL ownership reset: the toggle itself is NOT part of the context and does not travel. null means the default (true)."
   type        = bool
   default     = null
 }
@@ -137,31 +137,25 @@ variable "owner_propagation_enabled" {
 # --- Name generation ---
 
 variable "name" {
-  description = "The leaf resource name. The id composes the inherited hierarchy in front of it — <PREFIX>-<project>-<application>-<name>-<attributes...> — so keep it short (e.g. project=vlt, application=mobile, name=\"api\" -> usstg-usw2-vlt-mobile-api). The project/application segments come from those inputs, not from name."
+  description = "The leaf resource name. The id composes <namespace>-<region>-<stage>-<application>-<name>, so keep it short (e.g. namespace=cnct, application=mobile, name=\"api\" -> cnct-uk-prd-mobile-api)."
   type        = string
   default     = null
 }
 
 variable "attributes" {
-  description = "Ordered list of extra attributes appended to the id. Following CloudPosse null-label, attributes is an independent segment emitted whenever present — it can appear even without a name (e.g. <PREFIX>-<attr>). Merged onto any inherited from context."
+  description = "Ordered list of extra attributes appended to the id. Merged onto any inherited from context."
   type        = list(string)
   default     = null
 }
 
-variable "prefix_enabled" {
-  description = "When true (default) the generated id is prefixed with the PREFIX. Set to false for resources that must not carry the prefix."
-  type        = bool
-  default     = null
-}
-
 variable "delimiter" {
-  description = "Delimiter between id segments."
+  description = "Delimiter between id and tag-hierarchy segments. null inherits from context (defaults to \"-\")."
   type        = string
   default     = null
 }
 
 variable "tag_prefix" {
-  description = "Prefix segment prepended to the generated tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:project). Set to \"\" for unprefixed keys (project, application, …). null inherits from context (defaults to \"ohi\"). The Name tag is never prefixed. Must not resolve to the reserved \"aws:\" prefix."
+  description = "Prefix segment prepended to the generated OMRON tag keys, joined to the key by tag_delimiter (e.g. \"ohi\" + \":\" produces ohi:application). Set to \"\" for unprefixed keys. null inherits from context (defaults to \"ohi\"). CloudPosse's Namespace/Environment/Stage/Name tags are unaffected. Must not resolve to the reserved \"aws:\" prefix."
   type        = string
   default     = null
 
@@ -176,7 +170,7 @@ variable "tag_prefix" {
 }
 
 variable "tag_delimiter" {
-  description = "Delimiter between tag key segments (e.g. \":\" produces ohi:project). null inherits from context (defaults to \":\"). The Name tag is never affected by this setting."
+  description = "Delimiter between tag key segments (e.g. \":\" produces ohi:application). null inherits from context (defaults to \":\")."
   type        = string
   default     = null
 
@@ -187,7 +181,7 @@ variable "tag_delimiter" {
 }
 
 variable "id_length_limit" {
-  description = "Limit the generated id output to at most this many characters. When the full id is longer, the leading characters are kept and a short md5 hash is appended so distinct ids stay unique (CloudPosse null-label parity). The Name tag is unaffected — it carries the full id, bound only by the tag-value limit. Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set; with very small limits or multi-character delimiters the leading portion and/or delimiter may be dropped (the id can be shorter than the limit), but the 5-char hash is always preserved. Does not affect the id segments carried in context."
+  description = "Limit the generated id to at most this many characters (forwarded to CloudPosse null-label). When the full id is longer, the leading characters are kept and a short hash is appended so distinct ids stay unique. Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set."
   type        = number
   default     = null
 
@@ -220,7 +214,7 @@ variable "max_tag_value_length" {
 }
 
 variable "tags" {
-  description = "Additional tags to merge on top of the generated ohi:* and Name tags. At most 50 user-created tags; keys must be at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters — both default to the AWS maxima but can be lowered for stricter services (over-long values are truncated with a hash). Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
+  description = "Additional tags to merge on top of the generated CloudPosse + ohi:* tags. At most 50 user-created tags; keys at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters. Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
   type        = map(string)
   default     = {}
 }

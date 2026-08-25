@@ -7,7 +7,8 @@ run "inherits_tag_prefix_and_delimiter_from_context" {
   # tag_prefix/tag_delimiter are unset here; with a null default they must be
   # inherited from context rather than falling back to the module defaults.
   variables {
-    project = "vlt"
+    namespace   = "cnct"
+    application = "mobile"
     context = {
       tag_prefix    = "custom"
       tag_delimiter = "."
@@ -15,8 +16,8 @@ run "inherits_tag_prefix_and_delimiter_from_context" {
   }
 
   assert {
-    condition     = output.tags["custom.project"] == "vlt"
-    error_message = "tag_prefix/tag_delimiter should be inherited from context (expected key custom.project)"
+    condition     = output.tags["custom.application"] == "mobile"
+    error_message = "tag_prefix/tag_delimiter should be inherited from context (expected key custom.application)"
   }
 }
 
@@ -24,7 +25,8 @@ run "explicit_tag_prefix_delimiter_override_context" {
   command = plan
 
   variables {
-    project       = "vlt"
+    namespace     = "cnct"
+    application   = "mobile"
     tag_prefix    = "ohi"
     tag_delimiter = ":"
     context = {
@@ -34,7 +36,7 @@ run "explicit_tag_prefix_delimiter_override_context" {
   }
 
   assert {
-    condition     = output.tags["ohi:project"] == "vlt"
+    condition     = output.tags["ohi:application"] == "mobile"
     error_message = "explicit tag_prefix/tag_delimiter should override the inherited context"
   }
 }

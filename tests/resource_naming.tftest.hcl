@@ -1,54 +1,73 @@
-# Resource naming — a fully specified label produces the OMRON-standard id and tags.
+# Resource naming — a fully specified label produces the OMRON-standard id and
+# tags. id shape: <namespace>-<region>-<stage>-<application>-<name>-<attributes>.
+#
+# Ported to the CloudPosse-wrapped model (2026-08-25). Run blocks removed because
+# the wrapped model retired their feature:
+#   - `prefix` output / `prefix_enabled`      (CloudPosse label_order replaces it)
+#   - `deployment_region` derivation from aws_region (AWS region is now a tag, not
+#     an id segment — logical `region` drives the id)
 
-run "full_label_us_stg" {
+run "full_label" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = "mobile"
-    module            = "be"
-    owner             = "vlt-mobile-circle"
-    name              = "api"
-    attributes        = ["v1"]
+    namespace   = "cnct"
+    region      = "uk"
+    stage       = "prd"
+    aws_region  = "eu-west-2"
+    application = "mobile"
+    module      = "be"
+    owner       = "mobile-circle"
+    name        = "api"
+    attributes  = ["v1"]
   }
 
   assert {
-    condition     = output.prefix == "usstg-usw2"
-    error_message = "PREFIX should be <country><stage>-<region> (usstg-usw2), got ${output.prefix}"
+    condition     = output.id == "cnct-uk-prd-mobile-api-v1"
+    error_message = "id should be <namespace>-<region>-<stage>-<application>-<name>-<attributes>, got ${output.id}"
   }
   assert {
-    condition     = output.id == "usstg-usw2-vlt-mobile-api-v1"
-    error_message = "id should be <PREFIX>-<project>-<application>-<name>-<attributes>, got ${output.id}"
+    condition     = output.tags["Namespace"] == "cnct"
+    error_message = "Namespace tag should be the product token"
   }
   assert {
-    condition     = output.tags["ohi:project"] == "vlt"
-    error_message = "ohi:project tag mismatch"
+    condition     = output.tags["Environment"] == "uk"
+    error_message = "Environment tag should be the logical region"
   }
   assert {
-    condition     = output.tags["ohi:application"] == "vlt-mobile"
+    condition     = output.tags["Stage"] == "prd"
+    error_message = "Stage tag should be a first-class queryable tag"
+  }
+  assert {
+    condition     = output.tags["ohi:application"] == "mobile"
     error_message = "ohi:application tag mismatch"
   }
   assert {
-    condition     = output.tags["ohi:module"] == "vlt-mobile-be"
+    condition     = output.tags["ohi:module"] == "mobile-be"
     error_message = "ohi:module tag mismatch"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile-be"
-    error_message = "ohi:stack-name should derive to <PREFIX>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-mobile-be"
+    error_message = "ohi:stack-name should derive to <namespace>-<region>-<stage>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
   }
   assert {
-    condition     = output.tags["ohi:environment"] == "usstg-usw2"
-    error_message = "ohi:environment tag should equal the prefix"
+    condition     = output.tags["ohi:aws-region"] == "eu-west-2"
+    error_message = "ohi:aws-region tag should equal the aws_region input"
   }
   assert {
-    condition     = output.tags["ohi:owner"] == "vlt-mobile-circle"
+    condition     = !contains(keys(output.tags), "ohi:environment")
+    error_message = "ohi:environment is retired — CloudPosse Environment + Stage replace it"
+  }
+  assert {
+    condition     = !contains(keys(output.tags), "ohi:project")
+    error_message = "ohi:project is retired — namespace is the product identity"
+  }
+  assert {
+    condition     = output.tags["ohi:owner"] == "mobile-circle"
     error_message = "ohi:owner tag should equal the owner input"
   }
   assert {
-    condition     = output.tags["Name"] == "usstg-usw2-vlt-mobile-api-v1"
+    condition     = output.tags["Name"] == "cnct-uk-prd-mobile-api-v1"
     error_message = "Name tag should equal the id"
   }
 }
@@ -57,70 +76,16 @@ run "eu_stg_region" {
   command = plan
 
   variables {
-    country           = "eu"
-    stage             = "stg"
-    deployment_region = "euw1"
-    project           = "vlt"
-    application       = "mobile"
-    name              = "api"
+    namespace   = "cnct"
+    region      = "eu"
+    stage       = "stg"
+    application = "mobile"
+    name        = "api"
   }
 
   assert {
-    condition     = output.id == "eustg-euw1-vlt-mobile-api"
-    error_message = "id for eu/stg/euw1 mismatch, got ${output.id}"
-  }
-}
-
-run "deployment_region_derived_from_aws_region" {
-  command = plan
-
-  # deployment_region is unset, so it is derived from aws_region:
-  # us-west-2 -> usw2 (<part0><first-letter-of-part1><part2>).
-  variables {
-    country    = "us"
-    stage      = "stg"
-    aws_region = "us-west-2"
-    name       = "vlt-mobile-api"
-  }
-
-  assert {
-    condition     = output.prefix == "usstg-usw2"
-    error_message = "aws_region us-west-2 should derive deployment_region usw2, got prefix ${output.prefix}"
-  }
-}
-
-run "deployment_region_derived_multiletter" {
-  command = plan
-
-  # eu-central-1 -> euc1, ap-northeast-1 -> apn1.
-  variables {
-    country    = "eu"
-    stage      = "stg"
-    aws_region = "eu-central-1"
-    name       = "vlt-mobile-api"
-  }
-
-  assert {
-    condition     = output.prefix == "eustg-euc1"
-    error_message = "aws_region eu-central-1 should derive deployment_region euc1, got prefix ${output.prefix}"
-  }
-}
-
-run "explicit_deployment_region_overrides_aws_region" {
-  command = plan
-
-  # An explicit deployment_region wins over the value derived from aws_region.
-  variables {
-    country           = "us"
-    stage             = "stg"
-    aws_region        = "us-west-2"
-    deployment_region = "use1"
-    name              = "vlt-mobile-api"
-  }
-
-  assert {
-    condition     = output.prefix == "usstg-use1"
-    error_message = "explicit deployment_region should override the aws_region derivation, got ${output.prefix}"
+    condition     = output.id == "cnct-eu-stg-mobile-api"
+    error_message = "id for cnct/eu/stg mismatch, got ${output.id}"
   }
 }
 
@@ -128,8 +93,9 @@ run "invalid_aws_region_rejected" {
   command = plan
 
   variables {
+    namespace  = "cnct"
     aws_region = "notaregion"
-    name       = "vlt-mobile-api"
+    name       = "api"
   }
 
   expect_failures = [var.aws_region]
@@ -139,43 +105,20 @@ run "non_prd_naming" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    non_prd           = true
-    project           = "vlt"
-    name              = "shared"
+    namespace = "cnct"
+    region    = "uk"
+    stage     = "stg"
+    non_prd   = true
+    name      = "shared"
   }
 
   assert {
-    condition     = output.prefix == "usnp-usw2"
-    error_message = "non_prd prefix should be <country>np-<region> (usnp-usw2), got ${output.prefix}"
-  }
-  assert {
-    condition     = output.id == "usnp-usw2-vlt-shared"
+    condition     = output.id == "cnct-uk-np-shared"
     error_message = "non_prd id mismatch, got ${output.id}"
   }
   assert {
-    condition     = output.tags["ohi:environment"] == "usnp-usw2"
-    error_message = "non_prd ohi:environment mismatch"
-  }
-}
-
-run "prefix_suppressed" {
-  command = plan
-
-  variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    prefix_enabled    = false
-    project           = "vlt"
-    name              = "service-secrets"
-  }
-
-  assert {
-    condition     = output.id == "vlt-service-secrets"
-    error_message = "prefix_enabled=false should drop the prefix (stage-invariant name), got ${output.id}"
+    condition     = output.tags["Stage"] == "np"
+    error_message = "non_prd Stage tag should be np"
   }
 }
 
@@ -183,95 +126,88 @@ run "bare_tag_prefix" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = "mobile"
-    name              = "api"
-    tag_prefix        = ""
+    namespace   = "cnct"
+    region      = "uk"
+    stage       = "prd"
+    application = "mobile"
+    name        = "api"
+    tag_prefix  = ""
   }
 
   assert {
-    condition     = output.tags["project"] == "vlt"
-    error_message = "empty tag_prefix should yield an unprefixed 'project' key"
+    condition     = output.tags["application"] == "mobile"
+    error_message = "empty tag_prefix should yield an unprefixed 'application' key"
   }
   assert {
-    condition     = !contains(keys(output.tags), "ohi:project")
-    error_message = "empty tag_prefix should not produce an ohi:project key"
+    condition     = !contains(keys(output.tags), "ohi:application")
+    error_message = "empty tag_prefix should not produce an ohi:application key"
   }
   assert {
-    condition     = output.tags["Name"] == "usstg-usw2-vlt-mobile-api"
-    error_message = "Name tag is never prefixed and should equal the id"
+    condition     = output.tags["Name"] == "cnct-uk-prd-mobile-api"
+    error_message = "CloudPosse's Name tag is unaffected by tag_prefix and should equal the id"
   }
 }
 
 run "infra_set_composition" {
   command = plan
 
-  # The infra/default set: application equals the project, so the application
-  # segment is empty; module composes to <project>-infra.
+  # The infra/default set: no application, just a module under the namespace.
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = ""
-    module            = "infra"
+    namespace = "cnct"
+    region    = "uk"
+    stage     = "prd"
+    module    = "infra"
   }
 
   assert {
-    condition     = output.tags["ohi:application"] == "vlt"
-    error_message = "empty application segment should make ohi:application == project"
+    condition     = !contains(keys(output.tags), "ohi:application")
+    error_message = "with no application, ohi:application should be omitted"
   }
   assert {
-    condition     = output.tags["ohi:module"] == "vlt-infra"
-    error_message = "module should compose to <project>-infra, got ${output.tags["ohi:module"]}"
+    condition     = output.tags["ohi:module"] == "infra"
+    error_message = "module with no application composes to just <module>, got ${output.tags["ohi:module"]}"
   }
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-infra"
-    error_message = "ohi:stack-name should derive to <PREFIX>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-infra"
+    error_message = "ohi:stack-name should derive to <namespace>-<region>-<stage>-<ohi:module>, got ${output.tags["ohi:stack-name"]}"
   }
 }
 
-run "report_normalizes_under_composition" {
+run "module_composes_under_application" {
   command = plan
 
-  # Strict composition normalizes the legacy "report" exception (was vlt-report
-  # under application vlt-mobile) to vlt-mobile-report.
   variables {
-    project     = "vlt"
+    namespace   = "cnct"
     application = "mobile"
     module      = "report"
   }
 
   assert {
-    condition     = output.tags["ohi:application"] == "vlt-mobile"
-    error_message = "ohi:application should compose to vlt-mobile"
+    condition     = output.tags["ohi:application"] == "mobile"
+    error_message = "ohi:application should be the application segment"
   }
   assert {
-    condition     = output.tags["ohi:module"] == "vlt-mobile-report"
-    error_message = "module composes under application (normalizes the legacy vlt-report), got ${output.tags["ohi:module"]}"
+    condition     = output.tags["ohi:module"] == "mobile-report"
+    error_message = "module composes under application, got ${output.tags["ohi:module"]}"
   }
 }
 
 run "stack_suffix_override" {
   command = plan
 
-  # The optional escape hatch pins ohi:stack-name to <PREFIX>-<stack_suffix>,
-  # overriding the derived <PREFIX>-<ohi:module>.
+  # The optional escape hatch pins ohi:stack-name to
+  # <namespace>-<region>-<stage>-<stack_suffix>, overriding the derived hierarchy.
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = "mobile"
-    module            = "be"
-    stack_suffix      = "legacy-be-stack"
+    namespace    = "cnct"
+    region       = "uk"
+    stage        = "prd"
+    application  = "mobile"
+    module       = "be"
+    stack_suffix = "legacy-be-stack"
   }
 
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-legacy-be-stack"
-    error_message = "stack_suffix should override ohi:stack-name to <PREFIX>-<stack_suffix>, got ${output.tags["ohi:stack-name"]}"
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-legacy-be-stack"
+    error_message = "stack_suffix should override ohi:stack-name, got ${output.tags["ohi:stack-name"]}"
   }
 }

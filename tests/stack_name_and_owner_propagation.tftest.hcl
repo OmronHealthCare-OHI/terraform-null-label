@@ -6,16 +6,15 @@ run "stack_name_tag_emitted_by_default" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    project           = "vlt"
-    application       = "mobile"
-    module            = "be"
+    namespace   = "cnct"
+    region      = "uk"
+    stage       = "prd"
+    application = "mobile"
+    module      = "be"
   }
 
   assert {
-    condition     = output.tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile-be"
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-mobile-be"
     error_message = "ohi:stack-name should be emitted by default, got ${jsonencode(output.tags)}"
   }
 }
@@ -24,10 +23,9 @@ run "stack_name_tag_dropped_when_disabled" {
   command = plan
 
   variables {
-    country            = "us"
-    stage              = "stg"
-    deployment_region  = "usw2"
-    project            = "vlt"
+    namespace          = "cnct"
+    region             = "uk"
+    stage              = "prd"
     application        = "mobile"
     module             = "be"
     stack_name_enabled = false
@@ -40,7 +38,7 @@ run "stack_name_tag_dropped_when_disabled" {
 
   # The other generated tags are unaffected.
   assert {
-    condition     = output.tags["ohi:module"] == "vlt-mobile-be"
+    condition     = output.tags["ohi:module"] == "mobile-be"
     error_message = "disabling the stack-name tag should not affect the other ohi:* tags"
   }
 
@@ -55,16 +53,16 @@ run "owner_propagates_by_default" {
   command = plan
 
   variables {
-    project = "vlt"
-    owner   = "vlt-mobile-circle"
+    namespace = "cnct"
+    owner     = "mobile-circle"
   }
 
   assert {
-    condition     = output.tags["ohi:owner"] == "vlt-mobile-circle"
+    condition     = output.tags["ohi:owner"] == "mobile-circle"
     error_message = "owner should be emitted as the ohi:owner tag"
   }
   assert {
-    condition     = output.context.owner == "vlt-mobile-circle"
+    condition     = output.context.owner == "mobile-circle"
     error_message = "owner should be carried into the exported context by default"
   }
 }
@@ -73,14 +71,14 @@ run "owner_withheld_from_context_when_propagation_disabled" {
   command = plan
 
   variables {
-    project                   = "vlt"
-    owner                     = "vlt-mobile-circle"
+    namespace                 = "cnct"
+    owner                     = "mobile-circle"
     owner_propagation_enabled = false
   }
 
   # This label still tags itself with its own owner...
   assert {
-    condition     = output.tags["ohi:owner"] == "vlt-mobile-circle"
+    condition     = output.tags["ohi:owner"] == "mobile-circle"
     error_message = "disabling propagation should not drop this label's own ohi:owner tag"
   }
 
@@ -128,7 +126,7 @@ run "chain_owner_not_adopted_and_stack_name_stays_disabled" {
 
   # ...and a child can locally re-enable the stack-name tag.
   assert {
-    condition     = output.owned_child_tags["ohi:stack-name"] == "usstg-usw2-vlt-mobile-be"
+    condition     = output.owned_child_tags["ohi:stack-name"] == "cnct-uk-prd-mobile-be"
     error_message = "a child setting stack_name_enabled = true should emit ohi:stack-name again"
   }
 
