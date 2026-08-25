@@ -19,6 +19,7 @@ on:
 
 jobs:
   terraform:
+    name: terraform (${{ matrix.terraform_version }})
     runs-on: ubuntu-latest
 
     strategy:
