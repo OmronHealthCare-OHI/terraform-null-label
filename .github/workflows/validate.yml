@@ -7,16 +7,11 @@ on:
         type: string
         description: "Directory in which the Terraform configuration is available"
         default: "."
-      terraform_version:
+      ref:
         required: false
         type: string
-        description: "Terraform version to test against. Consumers pin older versions than latest, and validation short-circuiting differs between them."
-        default: "latest"
-      is_primary:
-        required: false
-        type: boolean
-        description: "Primary leg: publishes the PR comment and runs Checkov. Exactly one caller leg should set this."
-        default: true
+        description: "Commit, tag or branch to validate. Defaults to whatever triggered the caller."
+        default: ""
     secrets:
       GH_TOKEN:
         required: true
@@ -24,7 +19,17 @@ on:
 
 jobs:
   terraform:
+    name: terraform (${{ matrix.terraform_version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - terraform_version: "1.10.5"
+            primary: false
+          - terraform_version: "latest"
+            primary: true
 
     permissions:
       contents: read # for actions/checkout to fetch code
@@ -37,11 +42,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          ref: ${{ inputs.ref }}
           token: ${{ secrets.GH_TOKEN }}
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: ${{ inputs.terraform_version }}
+          terraform_version: ${{ matrix.terraform_version }}
       - name: Terraform format
         id: tf-fmt
         run: terraform -chdir=${{inputs.terraform_directory}} fmt -check
@@ -72,23 +78,24 @@ jobs:
           github_token: ${{ secrets.GH_TOKEN }}
           files: |
             ${{inputs.terraform_directory}}/test-results.xml
-          check_name: Terraform Test Results (${{ inputs.terraform_version }})
-          # One comment, from the primary leg only, or every version posts its own.
-          comment_mode: ${{ inputs.is_primary && 'always' || 'off' }}
+          check_name: Terraform Test Results (${{ matrix.terraform_version }})
+          # One comment, from the primary leg of a PR run. Release and main runs
+          # have no PR of their own and would comment on whatever merged last.
+          comment_mode: ${{ matrix.primary && github.event_name == 'pull_request' && 'always' || 'off' }}
           deduplicate_classes_by_file_name: false
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v7
         if: always() && steps.tf-test.outputs.junit == 'true'
         with:
-          name: terraform-test-results-${{ inputs.terraform_version }}
+          name: terraform-test-results-${{ matrix.terraform_version }}
           path: ${{inputs.terraform_directory}}/test-results.xml
           retention-days: 30
 
       # Findings do not depend on the Terraform version, so only one leg runs it.
       - name: Checkov validation
         id: checkov
-        if: inputs.is_primary
+        if: matrix.primary
         uses: bridgecrewio/checkov-action@v12
         with:
           # CLI output to the console only (no SARIF file is produced with this config)
