@@ -214,7 +214,7 @@ variable "max_tag_value_length" {
 }
 
 variable "tags" {
-  description = "Additional tags to merge on top of the generated CloudPosse + ohi:* tags. At most 50 user-created tags; keys at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters. Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
+  description = "Additional tags merged with the generated CloudPosse + ohi:* tags. On a key collision the GENERATED tags win, so the standard keys (Namespace, Environment, Stage, Name, ohi:*) cannot be overridden or cleared. AWS counts the generated tags toward its 50-tag cap, so the final emitted map (generated + additional) may hold at most 50 entries. Keys at most max_tag_key_length (default 128) and values at most max_tag_value_length (default 256) Unicode characters. Keys and values may only contain letters, numbers, spaces and _ . : / = + - @."
   type        = map(string)
   default     = {}
 }
