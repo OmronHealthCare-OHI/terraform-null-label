@@ -83,26 +83,43 @@ locals {
   tag_prefix    = local.input.tag_prefix == null ? "ohi" : local.input.tag_prefix
   tag_delimiter = local.input.tag_delimiter == null ? ":" : local.input.tag_delimiter
 
+  # CloudPosse normalizes every id segment (label_value_case = lower,
+  # regex_replace_chars strips all but [-a-zA-Z0-9]), and AWS tag filters are
+  # case-sensitive — so every ohi:* value derived from an id segment must use
+  # the SAME spelling as the id. The segments CloudPosse never sees
+  # (application, module) get the same rule here; the segments it does see are
+  # read back from its normalized outputs below.
+  norm_application = lower(replace(local.application, "/[^-a-zA-Z0-9]/", ""))
+  norm_module      = lower(replace(local.module, "/[^-a-zA-Z0-9]/", ""))
+
   # ohi:* hierarchy under the namespace (product): application -> application-module.
   # `namespace` is the product identity (CloudPosse Namespace) — there is no
   # separate ohi:project (it would double the Namespace tag). application feeds
   # CloudPosse's `name` component so it appears in the id; module does not (it
   # lives only in ohi:module).
-  hierarchy_application = local.application
-  hierarchy_module      = local.module == "" ? "" : join(local.delimiter, compact([local.application, local.module]))
+  hierarchy_application = local.norm_application
+  hierarchy_module      = local.norm_module == "" ? "" : join(local.delimiter, compact([local.norm_application, local.norm_module]))
 
   # The leaf hierarchy handed to CloudPosse as its `name` component:
-  # <application>-<name> (module excluded).
+  # <application>-<name> (module excluded). Passed raw — CloudPosse applies the
+  # same normalization itself.
   cp_name = join(local.delimiter, compact([local.application, local.name]))
 
   # ohi:stack-name identifies the concrete deployed stack:
   # <namespace>-<region>-<stage>-<deepest set hierarchy> (module, else
-  # application) — e.g. cnct-uk-prd-mobile-be. stack_suffix pins the leaf when
-  # something external needs an exact value.
-  stack_hierarchy = local.module != "" ? local.hierarchy_module : local.hierarchy_application
+  # application) — e.g. cnct-uk-prd-mobile-be. The prefix is read back from
+  # CloudPosse's NORMALIZED outputs so it always matches the id's spelling.
+  # stack_suffix pins the leaf when something external needs an exact value —
+  # deliberately raw: it never appears in the id, so no spelling mismatch can
+  # arise, and normalizing it would break the pin.
+  stack_hierarchy = local.norm_module != "" ? local.hierarchy_module : local.hierarchy_application
   stack_identity  = local.stack_suffix != "" ? local.stack_suffix : local.stack_hierarchy
-  stack_prefix    = join(local.delimiter, compact([local.namespace, local.region, local.stage_segment]))
-  stack_name      = local.stack_identity == "" ? "" : join(local.delimiter, compact([local.stack_prefix, local.stack_identity]))
+  stack_prefix = join(local.delimiter, compact([
+    module.cloudposse_label.namespace,
+    module.cloudposse_label.environment,
+    module.cloudposse_label.stage,
+  ]))
+  stack_name = local.stack_identity == "" ? "" : join(local.delimiter, compact([local.stack_prefix, local.stack_identity]))
 
   # OMRON ohi:* tags (only emitted when non-empty). CloudPosse emits
   # Namespace/Environment/Stage/Name; these are the OMRON-specific additions.

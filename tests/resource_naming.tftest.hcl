@@ -154,6 +154,57 @@ run "non_prd_naming" {
   }
 }
 
+run "non_prd_with_prd_stage_rejected" {
+  command = plan
+
+  # A caller who sets stage = "prd" while inheriting non_prd = true (e.g. from a
+  # parent context) would get a production resource silently tagged Stage = "np".
+  # The contradiction is rejected, not resolved.
+  variables {
+    namespace = "cnct"
+    region    = "uk"
+    stage     = "prd"
+    non_prd   = true
+    name      = "shared"
+  }
+
+  expect_failures = [output.id]
+}
+
+run "mixed_case_input_normalized_consistently" {
+  command = plan
+
+  # CloudPosse lowercases every id segment and strips all but [-a-zA-Z0-9]; AWS
+  # tag filters are case-sensitive, so the ohi:* values must use the id's
+  # normalized spelling — including the segments CloudPosse never sees
+  # (application, module), which are normalized with the same rule.
+  variables {
+    namespace   = "CNCT"
+    region      = "UK"
+    stage       = "prd"
+    application = "My.App"
+    module      = "BE"
+    name        = "api"
+  }
+
+  assert {
+    condition     = output.id == "cnct-uk-prd-myapp-api"
+    error_message = "mixed-case input should normalize in the id, got ${output.id}"
+  }
+  assert {
+    condition     = output.tags["ohi:stack-name"] == "cnct-uk-prd-myapp-be"
+    error_message = "ohi:stack-name must use the id's normalized spelling, got ${output.tags["ohi:stack-name"]}"
+  }
+  assert {
+    condition     = output.tags["ohi:application"] == "myapp"
+    error_message = "ohi:application must use the id's normalized spelling, got ${output.tags["ohi:application"]}"
+  }
+  assert {
+    condition     = output.tags["ohi:module"] == "myapp-be"
+    error_message = "ohi:module must use the id's normalized spelling, got ${output.tags["ohi:module"]}"
+  }
+}
+
 run "bare_tag_prefix" {
   command = plan
 

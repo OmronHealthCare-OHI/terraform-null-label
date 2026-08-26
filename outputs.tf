@@ -6,6 +6,13 @@ output "id" {
     condition     = local.namespace_present
     error_message = "namespace is required when the label is enabled: set the `namespace` variable or provide it through `context` (e.g. cnct, crt, luscii)."
   }
+  # non_prd collapses the non-prod stages into "np"; combined with stage = "prd"
+  # it would silently tag a production resource Stage = "np" — worst when
+  # non_prd is inherited via context. Contradictions are rejected, not resolved.
+  precondition {
+    condition     = !(local.non_prd && local.stage == "prd")
+    error_message = "non_prd = true cannot be combined with stage = \"prd\": the resource would be tagged Stage = \"np\"."
+  }
 }
 
 output "id_full" {
