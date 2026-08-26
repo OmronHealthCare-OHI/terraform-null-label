@@ -9,6 +9,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+    secrets:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   administration:
     runs-on: ubuntu-latest
     permissions:
@@ -19,7 +24,6 @@ jobs:
         id: draft-release
         uses: release-drafter/release-drafter@v7
         with:
-          disable-autolabeler: true
           publish: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
