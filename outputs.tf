@@ -1,25 +1,40 @@
 output "id" {
-  description = "The generated id: the non-empty segments joined by the delimiter — <PREFIX>, <project>, <application>, <name>, then <attributes...>. module is not part of the id (it lives in the ohi:module tag). The prefix is omitted when prefix_enabled = false. Truncated (with a trailing hash) when it exceeds id_length_limit. Empty when enabled = false."
-  value       = local.id
+  description = "The generated id from CloudPosse null-label: <namespace>-<region>-<stage>-<name>-<attributes...> (module is not part of the id — it lives in the ohi:module tag). Truncated (with a trailing hash) when it exceeds id_length_limit. Empty when enabled = false."
+  value       = module.cloudposse_label.id
+
+  precondition {
+    condition     = local.namespace_present
+    error_message = "namespace is required when the label is enabled: set the `namespace` variable or provide it through `context` (e.g. cnct, crt, luscii)."
+  }
 }
 
 output "id_full" {
   description = "The untruncated id, before any id_length_limit is applied. Equals id when id_length_limit is 0 (unlimited) or the id already fits."
-  value       = local.id_full
+  value       = module.cloudposse_label.id_full
 }
 
 output "name" {
-  description = "The resolved name segment (the `name` input, inherited via context). Use `id` for the full generated identifier."
-  value       = local.name
+  description = "The normalized name component (the composed <application>-<name> leaf). Use `id` for the full generated identifier."
+  value       = module.cloudposse_label.name
 }
 
-output "prefix" {
-  description = "The computed PREFIX: <country><stage>-<deployment_region> (or <country>np-<region> when non_prd)."
-  value       = local.prefix
+output "namespace" {
+  description = "The resolved namespace (product token)."
+  value       = module.cloudposse_label.namespace
+}
+
+output "region" {
+  description = "The resolved logical region (CloudPosse environment segment)."
+  value       = module.cloudposse_label.environment
+}
+
+output "stage" {
+  description = "The resolved stage scope: a single stage (dev/qa/stg/prd), \"np\" for the whole non-prod set, or empty when the resource is not stage-specific."
+  value       = module.cloudposse_label.stage
 }
 
 output "tags" {
-  description = "The generated tags: the required ohi:* tags + Name, merged with any additional tags. Values are capped at max_tag_value_length Unicode characters (default 256, the AWS ceiling)."
+  description = "The generated tags: CloudPosse's Namespace/Environment/Stage/Name + the OMRON ohi:* tags (ohi:application, ohi:module, ohi:stack-name, ohi:owner, ohi:aws-region), merged with any additional tags. Values are capped at max_tag_value_length Unicode characters (default 256, the AWS ceiling)."
   value       = local.tags
 
   precondition {
@@ -43,8 +58,8 @@ output "tags" {
     error_message = "Tag values may only contain letters, numbers, spaces and _ . : / = + - @. Offending keys: ${join(", ", local.invalid_value_keys)}."
   }
   precondition {
-    condition     = !local.enabled || local.user_tag_count <= local.max_user_tags
-    error_message = "A resource may have at most ${local.max_user_tags} user-created tags; got ${local.user_tag_count}."
+    condition     = !local.enabled || local.emitted_tag_count <= local.max_user_tags
+    error_message = "A resource may have at most ${local.max_user_tags} tags (generated ohi:*/CloudPosse tags count too); the label would emit ${local.emitted_tag_count}."
   }
 }
 

@@ -1,43 +1,39 @@
-# id_length_limit truncation and AWS tag constraints (key/value length, key
-# non-empty, user-tag count).
+# id_length_limit truncation (delegated to CloudPosse null-label) and the OMRON
+# AWS tag constraints (key/value length, key non-empty, user-tag count) applied
+# to the merged CloudPosse + ohi:* + user tag set.
+#
+# BEHAVIOUR CHANGE (2026-08-25, CloudPosse wrap): the `Name` tag now equals the
+# *truncated* id (CloudPosse emits Name = id), where the old bespoke module made
+# Name carry the full id bound only by the tag-value limit. The old
+# `name_tag_capped_at_value_limit_not_id_limit` run block is dropped. Confirm
+# whether Name-carries-full-id should be reinstated by overriding the Name tag.
 
 run "id_truncated_to_limit" {
   command = plan
 
-  # id_full = usstg-usw2-vlt-mobile-api-with-a-very-long-name-segment (> 20).
-  # With id_length_limit = 20 and a 5-char hash + 1-char delimiter, the leading
-  # 14 chars are kept ("usstg-usw2-vlt"), then "-" + a 5-char hash -> 20 chars.
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    name              = "vlt-mobile-api-with-a-very-long-name-segment"
-    id_length_limit   = 20
+    namespace       = "cnct"
+    region          = "uk"
+    stage           = "prd"
+    name            = "mobile-api-with-a-very-long-name-segment"
+    id_length_limit = 20
   }
 
   assert {
     condition     = length(output.id) == 20
-    error_message = "id should be truncated to exactly 20 chars, got ${length(output.id)} (${output.id})"
-  }
-  assert {
-    condition     = substr(output.id, 0, 15) == "usstg-usw2-vlt-"
-    error_message = "truncated id should keep the leading segment + delimiter, got ${output.id}"
+    error_message = "id should be truncated to at most 20 chars, got ${length(output.id)} (${output.id})"
   }
   assert {
     condition     = output.id != output.id_full
     error_message = "id should differ from id_full when truncated"
   }
   assert {
-    condition     = output.id_full == "usstg-usw2-vlt-mobile-api-with-a-very-long-name-segment"
+    condition     = output.id_full == "cnct-uk-prd-mobile-api-with-a-very-long-name-segment"
     error_message = "id_full should be the untruncated id, got ${output.id_full}"
   }
   assert {
-    condition     = output.tags["Name"] == output.id_full
-    error_message = "Name tag carries the full id (bound by the tag limit, not id_length_limit), got ${output.tags["Name"]}"
-  }
-  assert {
-    condition     = output.tags["Name"] != output.id
-    error_message = "Name tag should not be the length-limited id"
+    condition     = output.tags["Name"] == output.id
+    error_message = "CloudPosse Name tag equals the (truncated) id, got ${output.tags["Name"]}"
   }
   assert {
     condition     = output.context.id_length_limit == 20
@@ -49,15 +45,15 @@ run "id_not_truncated_when_within_limit" {
   command = plan
 
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    name              = "api"
-    id_length_limit   = 100
+    namespace       = "cnct"
+    region          = "uk"
+    stage           = "prd"
+    name            = "api"
+    id_length_limit = 100
   }
 
   assert {
-    condition     = output.id == "usstg-usw2-api" && output.id == output.id_full
+    condition     = output.id == "cnct-uk-prd-api" && output.id == output.id_full
     error_message = "an id within the limit should be untouched, got ${output.id}"
   }
 }
@@ -65,12 +61,11 @@ run "id_not_truncated_when_within_limit" {
 run "id_unlimited_by_default" {
   command = plan
 
-  # id_length_limit defaults to 0 (unlimited): no truncation regardless of length.
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    name              = "vlt-mobile-api-with-a-very-long-name-segment"
+    namespace = "cnct"
+    region    = "uk"
+    stage     = "prd"
+    name      = "mobile-api-with-a-very-long-name-segment"
   }
 
   assert {
@@ -94,7 +89,7 @@ run "tag_value_truncated_to_256" {
 
   # A 300-char value is capped to 256: first 251 original chars + 5-char hash.
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       long = join("", [for i in range(300) : "a"])
     }
@@ -114,7 +109,7 @@ run "tag_value_within_limit_untouched" {
   command = plan
 
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       short = "a-normal-value"
     }
@@ -131,7 +126,7 @@ run "oversized_tag_key_rejected" {
 
   # A 129-char key exceeds the 128-char AWS limit.
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       (join("", [for i in range(129) : "k"])) = "v"
     }
@@ -144,7 +139,7 @@ run "empty_tag_key_rejected" {
   command = plan
 
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       "" = "v"
     }
@@ -156,10 +151,11 @@ run "empty_tag_key_rejected" {
 run "too_many_user_tags_rejected" {
   command = plan
 
-  # 51 user tags exceeds the 50-tag limit.
+  # 49 user tags + 2 generated (Namespace, Name) = 51 total, over the 50 limit.
+  # The limit counts the full emitted map, not just user tags.
   variables {
-    project = "vlt"
-    tags    = { for i in range(51) : "key-${i}" => "v" }
+    namespace = "cnct"
+    tags      = { for i in range(49) : "key-${i}" => "v" }
   }
 
   expect_failures = [output.tags]
@@ -168,14 +164,19 @@ run "too_many_user_tags_rejected" {
 run "fifty_user_tags_allowed" {
   command = plan
 
+  # 48 user + 2 generated (Namespace, Name) = exactly 50 emitted tags: allowed.
   variables {
-    project = "vlt"
-    tags    = { for i in range(50) : "key-${i}" => "v" }
+    namespace = "cnct"
+    tags      = { for i in range(48) : "key-${i}" => "v" }
   }
 
   assert {
     condition     = output.tags["key-0"] == "v"
-    error_message = "exactly 50 user tags should be allowed"
+    error_message = "exactly 50 emitted tags (48 user + 2 generated) should be allowed"
+  }
+  assert {
+    condition     = length(output.tags) == 50
+    error_message = "the emitted map should be exactly 50 tags, got ${length(output.tags)}"
   }
 }
 
@@ -183,7 +184,7 @@ run "invalid_tag_key_char_rejected" {
   command = plan
 
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       "bad!key" = "v"
     }
@@ -196,7 +197,7 @@ run "invalid_tag_value_char_rejected" {
   command = plan
 
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       good = "bad*value"
     }
@@ -210,7 +211,7 @@ run "reserved_aws_prefix_user_key_rejected" {
 
   # A user-supplied key beginning with the reserved aws: prefix.
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       "aws:foo" = "v"
     }
@@ -223,11 +224,12 @@ run "reserved_aws_tag_prefix_rejected" {
   command = plan
 
   # A tag_prefix that slips past the variable check but still composes aws:*
-  # keys (here "aws:" + ":" delimiter -> aws::project) is caught by the output
-  # precondition that guards the final key set.
+  # keys (here "aws:" + ":" delimiter -> aws::application) is caught by the
+  # output precondition that guards the final key set.
   variables {
-    project    = "vlt"
-    tag_prefix = "aws:"
+    namespace   = "cnct"
+    application = "mobile"
+    tag_prefix  = "aws:"
   }
 
   expect_failures = [output.tags]
@@ -238,7 +240,7 @@ run "allowed_special_chars_ok" {
 
   # Every AWS-permitted special character in a key and value should pass.
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = {
       "a_b.c:d/e=f+g-h@i" = "v_1.2:3/4=5+6-7@8 z"
     }
@@ -256,7 +258,7 @@ run "custom_max_tag_value_length_truncates" {
   # A tighter per-service value ceiling still truncates with a hash: 30 chars
   # capped to 20 (15 leading + 5-char hash).
   variables {
-    project              = "vlt"
+    namespace            = "cnct"
     max_tag_value_length = 20
     tags = {
       long = join("", [for i in range(30) : "a"])
@@ -272,10 +274,10 @@ run "custom_max_tag_value_length_truncates" {
 run "custom_max_tag_key_length_rejected" {
   command = plan
 
-  # Tighter key ceiling (10) with an 11-char user key. tag_prefix="" keeps the
-  # generated "project" key within the ceiling.
+  # Tighter key ceiling (10) with an 11-char user key. No region/stage so the
+  # only generated keys are Namespace (9) and Name (4), within the ceiling.
   variables {
-    project            = "vlt"
+    namespace          = "cnct"
     tag_prefix         = ""
     max_tag_key_length = 10
     tags = {
@@ -296,38 +298,15 @@ run "max_tag_value_length_out_of_range_rejected" {
   expect_failures = [var.max_tag_value_length]
 }
 
-run "name_tag_capped_at_value_limit_not_id_limit" {
-  command = plan
-
-  # id_length_limit shrinks the id output, but the Name tag keeps the full id
-  # subject only to the (here tightened) tag-value limit.
-  variables {
-    country              = "us"
-    stage                = "stg"
-    deployment_region    = "usw2"
-    name                 = "vlt-mobile-api-with-a-very-long-name-segment"
-    id_length_limit      = 12
-    max_tag_value_length = 20
-  }
-
-  assert {
-    condition     = length(output.id) <= 12
-    error_message = "id output should honour id_length_limit (<= 12), got ${length(output.id)}"
-  }
-  assert {
-    condition     = length(output.tags["Name"]) == 20
-    error_message = "Name tag should be capped at the tag-value limit (20), not id_length_limit, got ${length(output.tags["Name"])}"
-  }
-}
-
 run "empty_valued_user_tags_not_counted" {
   command = plan
 
-  # 51 user tags, but 2 have empty values (dropped) -> 49 emitted, under the cap.
+  # 47 non-empty + 2 empty (dropped) + 2 generated = 49 emitted, under the cap.
+  # Empty-valued tags are dropped from the emitted map and so never count.
   variables {
-    project = "vlt"
+    namespace = "cnct"
     tags = merge(
-      { for i in range(49) : "key-${i}" => "v" },
+      { for i in range(47) : "key-${i}" => "v" },
       { "empty-a" = "", "empty-b" = "" },
     )
   }
@@ -338,30 +317,26 @@ run "empty_valued_user_tags_not_counted" {
   }
   assert {
     condition     = output.tags["key-0"] == "v"
-    error_message = "51 declared tags with 2 empty values (49 emitted) should be allowed"
+    error_message = "49 declared non-empty + 2 empty (dropped) should be allowed"
   }
 }
 
-run "multichar_delimiter_small_limit_preserves_hash" {
+run "multichar_delimiter_small_limit" {
   command = plan
 
-  # With a 2-char delimiter and the minimum limit, the leading portion/delimiter
-  # are dropped but the 5-char hash is preserved and the id stays non-empty.
+  # A 2-char delimiter with the minimum limit. Truncation is CloudPosse's; the
+  # id stays non-empty and within the limit.
   variables {
-    country           = "us"
-    stage             = "stg"
-    deployment_region = "usw2"
-    name              = "vlt-mobile-api-with-a-very-long-name-segment"
-    delimiter         = "__"
-    id_length_limit   = 6
+    namespace       = "cnct"
+    region          = "uk"
+    stage           = "prd"
+    name            = "mobile-api-with-a-very-long-name-segment"
+    delimiter       = "__"
+    id_length_limit = 6
   }
 
   assert {
-    condition     = length(output.id) == 5
-    error_message = "with limit 6, 2-char delimiter and a 5-char hash the id is the bare hash (5 chars), got ${length(output.id)} (${output.id})"
-  }
-  assert {
-    condition     = output.id != "" && output.id == substr(md5(output.id_full), 0, 5)
-    error_message = "the truncated id must be the preserved 5-char hash of id_full, got ${output.id}"
+    condition     = output.id != "" && length(output.id) <= 6
+    error_message = "with limit 6 the id should be non-empty and within the limit, got ${length(output.id)} (${output.id})"
   }
 }

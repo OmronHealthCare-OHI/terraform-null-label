@@ -1,34 +1,33 @@
 # Harness for the context-chaining test: mirrors the Luscii
-# org -> workload -> resource label chain, OMRON-style. Instantiates the
+# namespace -> workload -> resource label chain, OMRON-style. Instantiates the
 # label module three times, each inheriting the previous one's context.
 
 terraform {
   required_version = ">= 1.3.0"
 }
 
-# Org-level root label: prefix parts + project/application + a shared tag. No name.
+# Namespace-level root label: id segments + application + a shared tag. No name.
 module "org" {
   source = "../../"
 
-  country           = "us"
-  stage             = "stg"
-  deployment_region = "usw2"
-  project           = "vlt"
-  application       = "mobile"
-  owner             = "vlt-mobile-circle"
+  namespace   = "cnct"
+  region      = "uk"
+  stage       = "prd"
+  application = "mobile"
+  owner       = "mobile-circle"
 
   tags = {
     Team = "voltron"
   }
 }
 
-# Workload sub-label: inherits the org context, adds module segment + leaf name.
+# Workload sub-label: inherits the namespace context, adds module segment + leaf name.
 module "workload" {
   source = "../../"
 
   context = module.org.context
   module  = "be"
-  name    = "api" # id composes the inherited hierarchy -> usstg-usw2-vlt-mobile-api
+  name    = "api" # id composes the inherited hierarchy -> cnct-uk-prd-mobile-api
 }
 
 # Resource sub-label: extends the workload context with an attribute only.

@@ -28,3 +28,6 @@ terraform.rc
 
 # IDE settings
 .idea/
+
+# pre-commit-terraform (tflint/checkov) downloads nested modules here
+**/.external_modules/

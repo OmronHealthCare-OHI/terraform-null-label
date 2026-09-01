@@ -13,13 +13,12 @@ terraform {
 module "parent" {
   source = "../../"
 
-  country           = "us"
-  stage             = "stg"
-  deployment_region = "usw2"
-  project           = "vlt"
-  application       = "mobile"
+  namespace   = "cnct"
+  region      = "uk"
+  stage       = "prd"
+  application = "mobile"
 
-  owner                     = "vlt-mobile-circle"
+  owner                     = "mobile-circle"
   owner_propagation_enabled = false
   stack_name_enabled        = false
 }
