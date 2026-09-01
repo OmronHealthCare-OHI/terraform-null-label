@@ -133,42 +133,84 @@ run "invalid_aws_region_rejected" {
   expect_failures = [var.aws_region]
 }
 
-run "non_prd_naming" {
+run "np_stage_naming" {
   command = plan
 
+  # "np" is the whole non-prod set (dev/qa/stg) — a stage SCOPE, not a
+  # deployment stage. It is an ordinary value of `stage`, so it cannot
+  # contradict another field the way the old non_prd boolean could.
   variables {
     namespace = "cnct"
     region    = "uk"
-    stage     = "stg"
-    non_prd   = true
+    stage     = "np"
     name      = "shared"
   }
 
   assert {
     condition     = output.id == "cnct-uk-np-shared"
-    error_message = "non_prd id mismatch, got ${output.id}"
+    error_message = "np id mismatch, got ${output.id}"
   }
   assert {
     condition     = output.tags["Stage"] == "np"
-    error_message = "non_prd Stage tag should be np"
+    error_message = "np Stage tag should be np"
   }
 }
 
-run "non_prd_with_prd_stage_rejected" {
+run "np_and_prd_accounts_are_a_symmetric_pair" {
   command = plan
 
-  # A caller who sets stage = "prd" while inheriting non_prd = true (e.g. from a
-  # parent context) would get a production resource silently tagged Stage = "np".
-  # The contradiction is rejected, not resolved.
+  # The shared non-prod account and its prd partner must both carry a stage
+  # segment: cnct-us-np / cnct-us-prd. This is what makes "np" a value rather
+  # than an absence — leaving stage unset would give the pair only one half.
+  variables {
+    namespace = "cnct"
+    region    = "us"
+    stage     = "np"
+  }
+
+  assert {
+    condition     = output.id == "cnct-us-np"
+    error_message = "non-prod account id mismatch, got ${output.id}"
+  }
+}
+
+run "invalid_stage_rejected" {
+  command = plan
+
+  # The stage vocabulary is closed: dev, qa, stg, prd, np.
   variables {
     namespace = "cnct"
     region    = "uk"
-    stage     = "prd"
-    non_prd   = true
-    name      = "shared"
+    stage     = "prod"
+    name      = "api"
   }
 
-  expect_failures = [output.id]
+  expect_failures = [var.stage]
+}
+
+run "unset_stage_yields_no_stage_segment_or_tag" {
+  command = plan
+
+  # A resource that is not stage-specific at all leaves stage unset: no stage
+  # segment in the id, and the Stage tag is dropped rather than emitted empty.
+  variables {
+    namespace = "cnct"
+    region    = "uk"
+    name      = "shared-infra"
+  }
+
+  assert {
+    condition     = output.id == "cnct-uk-shared-infra"
+    error_message = "stageless id mismatch, got ${output.id}"
+  }
+  assert {
+    condition     = !contains(keys(output.tags), "Stage")
+    error_message = "an unset stage must drop the Stage tag entirely"
+  }
+  assert {
+    condition     = output.stage == ""
+    error_message = "an unset stage must resolve to an empty stage scope"
+  }
 }
 
 run "mixed_case_input_normalized_consistently" {

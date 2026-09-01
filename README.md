@@ -21,7 +21,13 @@ tag** (and `Environment` = logical region).
   `<namespace>-<region>-<stage>-<name>-<attributes...>`, e.g. `cnct-uk-prd-mobile-api`.
   `name` composes the `<application>-<leaf name>` hierarchy, so the leaf stays
   short; `module` is **not** part of the id (it lives in the `ohi:module` tag).
-  `stage` becomes `np` when `non_prd = true`.
+- **`stage` is a scope, not a flag** — one of `dev`, `qa`, `stg`, `prd`, or `np`
+  for the whole non-prod set. `np` is **not** a deployment stage: use it only
+  where the resource's scope genuinely is all of `dev`/`qa`/`stg` — the shared
+  non-prod AWS account, which pairs with its prd partner as `cnct-us-np` /
+  `cnct-us-prd`. A resource that is not stage-specific at all leaves `stage`
+  unset: no stage segment in the id, and the `Stage` tag is dropped rather than
+  emitted empty.
 - **`namespace` is the product** — `cnct` (Connect/voltron), `crt` (Create), … —
   emitted as CloudPosse's `Namespace` tag and the leading id segment. **Required**
   (set the variable or inherit it via `context`).
@@ -94,8 +100,8 @@ module "api_label" {
 }
 ```
 
-See [`examples/complete`](examples/complete) for more (non-prod resources,
-unprefixed tag keys, and a length-limited id).
+See [`examples/complete`](examples/complete) for more (a non-prod-wide `np`
+resource, a stage-less resource, unprefixed tag keys, and a length-limited id).
 
 <!-- BEGIN_TF_DOCS -->
 ### Requirements
@@ -125,7 +131,7 @@ No resources.
 | <a name="input_application"></a> [application](#input\_application) | Application segment under the namespace, e.g. "mobile" -> ohi:application = mobile, and the leading part of the id name (cnct-uk-prd-mobile-...). Leave empty for namespace-level (e.g. shared infra). | `string` | `null` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | Ordered list of extra attributes appended to the id. Merged onto any inherited from context. | `list(string)` | `null` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region code, e.g. us-east-1, eu-central-1, eu-west-2. Emitted as the ohi:aws-region tag; NOT part of the id (through account navigation the AWS region is already a given). | `string` | `null` | no |
-| <a name="input_context"></a> [context](#input\_context) | Inherited label context from a parent module invocation. Explicit variables override matching context fields; attributes and tags are merged. | <pre>object({<br/>    enabled              = optional(bool, true)<br/>    namespace            = optional(string, null)<br/>    region               = optional(string, null)<br/>    stage                = optional(string, null)<br/>    aws_region           = optional(string, null)<br/>    application          = optional(string, null)<br/>    module               = optional(string, null)<br/>    stack_suffix         = optional(string, null)<br/>    stack_name_enabled   = optional(bool, true)<br/>    owner                = optional(string, null)<br/>    name                 = optional(string, null)<br/>    attributes           = optional(list(string), [])<br/>    non_prd              = optional(bool, false)<br/>    delimiter            = optional(string, "-")<br/>    tag_prefix           = optional(string, "ohi")<br/>    tag_delimiter        = optional(string, ":")<br/>    id_length_limit      = optional(number, null)<br/>    max_tag_key_length   = optional(number, null)<br/>    max_tag_value_length = optional(number, null)<br/>    tags                 = optional(map(string), {})<br/>  })</pre> | `{}` | no |
+| <a name="input_context"></a> [context](#input\_context) | Inherited label context from a parent module invocation. Explicit variables override matching context fields; attributes and tags are merged. | <pre>object({<br/>    enabled              = optional(bool, true)<br/>    namespace            = optional(string, null)<br/>    region               = optional(string, null)<br/>    stage                = optional(string, null)<br/>    aws_region           = optional(string, null)<br/>    application          = optional(string, null)<br/>    module               = optional(string, null)<br/>    stack_suffix         = optional(string, null)<br/>    stack_name_enabled   = optional(bool, true)<br/>    owner                = optional(string, null)<br/>    name                 = optional(string, null)<br/>    attributes           = optional(list(string), [])<br/>    delimiter            = optional(string, "-")<br/>    tag_prefix           = optional(string, "ohi")<br/>    tag_delimiter        = optional(string, ":")<br/>    id_length_limit      = optional(number, null)<br/>    max_tag_key_length   = optional(number, null)<br/>    max_tag_value_length = optional(number, null)<br/>    tags                 = optional(map(string), {})<br/>  })</pre> | `{}` | no |
 | <a name="input_delimiter"></a> [delimiter](#input\_delimiter) | Delimiter between id and tag-hierarchy segments. null inherits from context (defaults to "-"). | `string` | `null` | no |
 | <a name="input_enabled"></a> [enabled](#input\_enabled) | Set to false to produce an empty id and no tags. | `bool` | `null` | no |
 | <a name="input_id_length_limit"></a> [id\_length\_limit](#input\_id\_length\_limit) | Limit the generated id to at most this many characters (forwarded to CloudPosse null-label). When the full id is longer, the leading characters are kept and a short hash is appended so distinct ids stay unique. Set to 0 for unlimited length (default), or null to inherit from context. Minimum 6 when set. | `number` | `null` | no |
@@ -134,13 +140,12 @@ No resources.
 | <a name="input_module"></a> [module](#input\_module) | Module segment appended to application to form ohi:module (e.g. "be" under application "mobile" -> mobile-be). Not part of the id. | `string` | `null` | no |
 | <a name="input_name"></a> [name](#input\_name) | The leaf resource name. The id composes <namespace>-<region>-<stage>-<application>-<name>, so keep it short (e.g. namespace=cnct, application=mobile, name="api" -> cnct-uk-prd-mobile-api). | `string` | `null` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | Product namespace and leading id segment, e.g. cnct (Connect), crt (Create), luscii. REQUIRED: must resolve from this variable or the inherited context when enabled. | `string` | `null` | no |
-| <a name="input_non_prd"></a> [non\_prd](#input\_non\_prd) | When true, the stage segment becomes "np" so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage. | `bool` | `null` | no |
 | <a name="input_owner"></a> [owner](#input\_owner) | The circle that controls the resource. Emitted as the ohi:owner tag (subject to tag\_prefix/tag\_delimiter). Not part of the id. | `string` | `null` | no |
 | <a name="input_owner_propagation_enabled"></a> [owner\_propagation\_enabled](#input\_owner\_propagation\_enabled) | When true (default) owner is carried into the exported context, so child labels inherit it. Set to false to withhold owner from the context: this label still emits its own ohi:owner tag, but child labels start without an owner and must state their own explicitly. This is a ONE-LEVEL ownership reset: the toggle itself is NOT part of the context and does not travel. null means the default (true). | `bool` | `null` | no |
 | <a name="input_region"></a> [region](#input\_region) | Logical region code (the geo identifier in the id), e.g. us, eu, uk. Each logical region maps to an AWS region (us->us-east-1, eu->eu-central-1, uk->eu-west-2) and is extensible. This is NOT the AWS region code — set aws\_region for that. | `string` | `null` | no |
 | <a name="input_stack_name_enabled"></a> [stack\_name\_enabled](#input\_stack\_name\_enabled) | When true (default) the ohi:stack-name tag is emitted. Set to false to drop the tag for labels where a stack name is not meaningful. Inherited by child labels via context; null inherits from context. | `bool` | `null` | no |
 | <a name="input_stack_suffix"></a> [stack\_suffix](#input\_stack\_suffix) | OPTIONAL override for ohi:stack-name. By default ohi:stack-name is <namespace>-<region>-<stage>-<deepest hierarchy> (module, else application). Set it only to pin an exact leaf when something external depends on a specific stack name. | `string` | `null` | no |
-| <a name="input_stage"></a> [stage](#input\_stage) | Stage code, e.g. dev, qa, stg, prd. Becomes "np" in the id/Stage tag when non\_prd = true. | `string` | `null` | no |
+| <a name="input_stage"></a> [stage](#input\_stage) | Stage scope of the resource: a single deployment stage (dev, qa, stg, prd) or "np" for the whole non-prod set. "np" is NOT a deployment stage — use it only where the resource's scope genuinely is all of dev/qa/stg, e.g. the shared non-prod AWS account, which pairs with the prd account as cnct-us-np / cnct-us-prd. A resource that is not stage-specific at all should leave stage unset (no Stage tag, no stage segment). | `string` | `null` | no |
 | <a name="input_tag_delimiter"></a> [tag\_delimiter](#input\_tag\_delimiter) | Delimiter between tag key segments (e.g. ":" produces ohi:application). null inherits from context (defaults to ":"). | `string` | `null` | no |
 | <a name="input_tag_prefix"></a> [tag\_prefix](#input\_tag\_prefix) | Prefix segment prepended to the generated OMRON tag keys, joined to the key by tag\_delimiter (e.g. "ohi" + ":" produces ohi:application). Set to "" for unprefixed keys. null inherits from context (defaults to "ohi"). CloudPosse's Namespace/Environment/Stage/Name tags are unaffected. Must not resolve to the reserved "aws:" prefix. | `string` | `null` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags merged with the generated CloudPosse + ohi:* tags. On a key collision the GENERATED tags win, so the standard keys (Namespace, Environment, Stage, Name, ohi:*) cannot be overridden or cleared. AWS counts the generated tags toward its 50-tag cap, so the final emitted map (generated + additional) may hold at most 50 entries. Keys at most max\_tag\_key\_length (default 128) and values at most max\_tag\_value\_length (default 256) Unicode characters. Keys and values may only contain letters, numbers, spaces and \_ . : / = + - @. | `map(string)` | `{}` | no |
@@ -156,6 +161,6 @@ No resources.
 | <a name="output_name"></a> [name](#output\_name) | The normalized name component (the composed <application>-<name> leaf). Use `id` for the full generated identifier. |
 | <a name="output_namespace"></a> [namespace](#output\_namespace) | The resolved namespace (product token). |
 | <a name="output_region"></a> [region](#output\_region) | The resolved logical region (CloudPosse environment segment). |
-| <a name="output_stage"></a> [stage](#output\_stage) | The resolved stage segment ("np" when non\_prd). |
+| <a name="output_stage"></a> [stage](#output\_stage) | The resolved stage scope: a single stage (dev/qa/stg/prd), "np" for the whole non-prod set, or empty when the resource is not stage-specific. |
 | <a name="output_tags"></a> [tags](#output\_tags) | The generated tags: CloudPosse's Namespace/Environment/Stage/Name + the OMRON ohi:* tags (ohi:application, ohi:module, ohi:stack-name, ohi:owner, ohi:aws-region), merged with any additional tags. Values are capped at max\_tag\_value\_length Unicode characters (default 256, the AWS ceiling). |
 <!-- END_TF_DOCS -->

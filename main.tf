@@ -1,7 +1,6 @@
 locals {
   defaults = {
     enabled                   = true
-    non_prd                   = false
     stack_name_enabled        = true
     owner_propagation_enabled = true
     delimiter                 = "-"
@@ -40,7 +39,6 @@ locals {
     # parent's reset can never silently disable owner propagation for a child.
     owner_propagation_enabled = var.owner_propagation_enabled
     name                      = var.name == null ? var.context.name : var.name
-    non_prd                   = var.non_prd == null ? var.context.non_prd : var.non_prd
     delimiter                 = var.delimiter == null ? var.context.delimiter : var.delimiter
     tag_prefix                = var.tag_prefix == null ? var.context.tag_prefix : var.tag_prefix
     tag_delimiter             = var.tag_delimiter == null ? var.context.tag_delimiter : var.tag_delimiter
@@ -54,7 +52,6 @@ locals {
   # Coalesce to defaults so an explicit null (as a variable or via context) can't
   # break the conditionals below (Terraform requires a non-null bool there).
   enabled                   = local.input.enabled == null ? local.defaults.enabled : local.input.enabled
-  non_prd                   = local.input.non_prd == null ? local.defaults.non_prd : local.input.non_prd
   stack_name_enabled        = local.input.stack_name_enabled == null ? local.defaults.stack_name_enabled : local.input.stack_name_enabled
   owner_propagation_enabled = local.input.owner_propagation_enabled == null ? local.defaults.owner_propagation_enabled : local.input.owner_propagation_enabled
   delimiter                 = local.input.delimiter == null ? local.defaults.delimiter : local.input.delimiter
@@ -73,9 +70,6 @@ locals {
   module       = local.input.module == null ? "" : local.input.module
   stack_suffix = local.input.stack_suffix == null ? "" : local.input.stack_suffix
   owner        = local.input.owner == null ? "" : local.input.owner
-
-  # Stage segment: "np" collapses the non-prod stages into one; otherwise stage.
-  stage_segment = local.non_prd ? "np" : local.stage
 
   # Tag-key prefix + delimiter (e.g. "ohi" + ":" -> "ohi:application"). Coalesce a
   # null (via var or context) to the default. An empty tag_prefix drops the
@@ -182,7 +176,6 @@ locals {
     owner                = local.owner_propagation_enabled ? local.input.owner : null
     name                 = local.input.name
     attributes           = local.input.attributes
-    non_prd              = local.non_prd
     delimiter            = local.delimiter
     tag_prefix           = local.tag_prefix
     tag_delimiter        = local.tag_delimiter
@@ -204,13 +197,13 @@ module "cloudposse_label" {
   enabled     = local.enabled
   namespace   = local.namespace
   environment = local.region
-  stage       = local.stage_segment
+  stage       = local.stage
   name        = local.cp_name
   attributes  = local.input.attributes
   delimiter   = local.delimiter
 
-  # <namespace>-<region>-<stage>-<name>-<attributes>. region -> environment,
-  # stage_segment -> stage. tenant is unused.
+  # <namespace>-<region>-<stage>-<name>-<attributes>. region -> environment.
+  # tenant is unused.
   label_order = ["namespace", "environment", "stage", "name", "attributes"]
 
   # Emit ONLY the advertised standard tags. CloudPosse defaults labels_as_tags to

@@ -10,7 +10,7 @@
 #   e.g. cnct-uk-prd-mobile-api
 #   - namespace : product token (cnct/crt/luscii) — REQUIRED (var or context)
 #   - region    : logical region (us/eu/uk), linked to an AWS region
-#   - stage     : dev/qa/stg/prd, or "np" when non_prd = true
+#   - stage     : dev/qa/stg/prd, or "np" (the whole non-prod set)
 #   - name      : composed <application>-<name> leaf hierarchy
 # The AWS region is NOT part of the id — it is emitted as the ohi:aws-region tag.
 
@@ -29,7 +29,6 @@ variable "context" {
     owner                = optional(string, null)
     name                 = optional(string, null)
     attributes           = optional(list(string), [])
-    non_prd              = optional(bool, false)
     delimiter            = optional(string, "-")
     tag_prefix           = optional(string, "ohi")
     tag_delimiter        = optional(string, ":")
@@ -62,20 +61,14 @@ variable "region" {
 }
 
 variable "stage" {
-  description = "Stage code, e.g. dev, qa, stg, prd. Becomes \"np\" in the id/Stage tag when non_prd = true."
+  description = "Stage scope of the resource: a single deployment stage (dev, qa, stg, prd) or \"np\" for the whole non-prod set. \"np\" is NOT a deployment stage — use it only where the resource's scope genuinely is all of dev/qa/stg, e.g. the shared non-prod AWS account, which pairs with the prd account as cnct-us-np / cnct-us-prd. A resource that is not stage-specific at all should leave stage unset (no Stage tag, no stage segment)."
   type        = string
   default     = null
 
   validation {
-    condition     = var.stage == null ? true : contains(["dev", "qa", "stg", "prd"], var.stage)
-    error_message = "The stage must be one of: dev, qa, stg, prd."
+    condition     = var.stage == null ? true : contains(["dev", "qa", "stg", "prd", "np"], var.stage)
+    error_message = "The stage must be one of: dev, qa, stg, prd, np."
   }
-}
-
-variable "non_prd" {
-  description = "When true, the stage segment becomes \"np\" so resources shared across the non-prod stages (dev/qa/stg) carry a single non-prod stage."
-  type        = bool
-  default     = null
 }
 
 variable "aws_region" {

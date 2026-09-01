@@ -30,14 +30,25 @@ module "api_label" {
   attributes = ["v1"]
 }
 
-# Non-prod shared resource: same context, but non_prd swaps the stage segment
-# to "np". id -> cnct-uk-np-mobile-shared.
+# Non-prod-wide resource: stage = "np" overrides the inherited stage with the
+# whole non-prod set (dev/qa/stg). id -> cnct-uk-np-mobile-shared.
 module "shared_nonprd_label" {
   source = "../../"
 
   context = module.label.context
-  non_prd = true
+  stage   = "np"
   name    = "shared"
+}
+
+# Not stage-specific at all: stage explicitly unset yields no stage segment and
+# no Stage tag. This is the shape a shared account-level resource takes.
+module "stageless_label" {
+  source = "../../"
+
+  namespace   = "cnct"
+  region      = "uk"
+  application = "mobile"
+  name        = "shared-infra"
 }
 
 # Unprefixed OMRON tag keys: tag_prefix = "" yields application/module/… instead
@@ -69,6 +80,10 @@ output "api" {
 
 output "shared_nonprd" {
   value = { id = module.shared_nonprd_label.id, tags = module.shared_nonprd_label.tags }
+}
+
+output "stageless" {
+  value = { id = module.stageless_label.id, tags = module.stageless_label.tags }
 }
 
 output "bare" {
