@@ -103,8 +103,33 @@ jobs:
           output_file_path: console
           config_file: .checkov-config.yml
 
+      # The examples are the module's published usage contract, and `terraform
+      # validate` does NOT evaluate preconditions — those are plan-time only. So
+      # an example that cannot plan (e.g. one tripping an output precondition)
+      # passes validate and every other check here. Planning each example is the
+      # only step that exercises the contract as a consumer would.
+      - name: Terraform plan examples
+        id: tf-plan-examples
+        env:
+          TF_DIR: ${{ inputs.terraform_directory }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          examples=("${TF_DIR}"/examples/*/)
+          if [ ${#examples[@]} -eq 0 ]; then
+            echo "No examples/ directories found under ${TF_DIR} — nothing to plan."
+            exit 0
+          fi
+          for dir in "${examples[@]}"; do
+            echo "::group::plan ${dir}"
+            terraform -chdir="${dir}" init -backend=false -input=false -no-color
+            terraform -chdir="${dir}" plan -input=false -no-color
+            echo "::endgroup::"
+          done
+
       # fmt and test run with continue-on-error so results/artifacts still publish;
-      # this gate then fails the job if either did not succeed.
+      # this gate then fails the job if either did not succeed. The examples plan
+      # fails the step directly (no artifact to publish), so it is not gated here.
       - name: Fail on format or test errors
         if: steps.tf-fmt.outcome != 'success' || steps.tf-test.outcome != 'success'
         run: |
