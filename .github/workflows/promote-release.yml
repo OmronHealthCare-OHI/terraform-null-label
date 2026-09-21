@@ -31,9 +31,13 @@ jobs:
         id: tags
         uses: actions/github-script@v9
         if: inputs.type == 'latest'
+        env:
+          # Never interpolate the ref into the script body: a tag name may
+          # contain quotes or backticks, and this step holds a write token.
+          REF: ${{ inputs.ref }}
         with:
           script: |
-            const version = "${{ inputs.ref }}"
+            const version = process.env.REF
             const major = version.split('.')[0]
             const minor = version.split('.')[1]
 
