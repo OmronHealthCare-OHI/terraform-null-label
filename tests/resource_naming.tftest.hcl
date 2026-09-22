@@ -317,6 +317,63 @@ run "module_composes_under_application" {
   }
 }
 
+run "sibling_service_owns_the_leaf_name" {
+  command = plan
+
+  # A service whose own leaf name is `worker`, labelled from a repo root context
+  # that leaves `name` unset. This is the supported pattern: the leaf owns the
+  # single name slot.
+  variables {
+    namespace   = "cnct"
+    region      = "uk"
+    stage       = "prd"
+    application = "mobile"
+    name        = "worker"
+  }
+
+  assert {
+    condition     = output.id == "cnct-uk-prd-mobile-worker"
+    error_message = "the leaf's own name should compose under the hierarchy, got ${output.id}"
+  }
+}
+
+run "child_name_replaces_inherited_leaf_and_collides_with_that_sibling" {
+  command = plan
+
+  # A child label under the `api` service: it inherits api's resolved context and
+  # states its own leaf name. There is one name slot, so `worker` REPLACES the
+  # inherited `api` instead of nesting under it — and the id is byte-identical to
+  # the sibling `worker` service above.
+  #
+  # Pinned deliberately: what avoids this is the documented uniqueness rule — a
+  # leaf name is unique within its namespace/application — not a code change.
+  # Unfolding application + name to allow nesting would be a major release, so
+  # this assertion must fail loudly if the id shape moves.
+  variables {
+    context = {
+      namespace   = "cnct"
+      region      = "uk"
+      stage       = "prd"
+      application = "mobile"
+      name        = "api"
+    }
+    name = "worker"
+  }
+
+  assert {
+    condition     = output.id == "cnct-uk-prd-mobile-worker"
+    error_message = "a child's name replaces the inherited leaf, so it collides with a sibling of the same token — got ${output.id}"
+  }
+  assert {
+    condition     = output.tags["Name"] == "cnct-uk-prd-mobile-worker"
+    error_message = "the Name tag follows the id, so the collision is not cosmetic — got ${output.tags["Name"]}"
+  }
+  assert {
+    condition     = output.tags["ohi:application"] == "mobile"
+    error_message = "the child should still inherit ohi:application from the context"
+  }
+}
+
 run "stack_suffix_override" {
   command = plan
 

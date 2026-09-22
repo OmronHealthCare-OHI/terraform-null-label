@@ -21,6 +21,8 @@ tag** (and `Environment` = logical region).
   `<namespace>-<region>-<stage>-<name>-<attributes...>`, e.g. `cnct-uk-prd-mobile-api`.
   `name` composes the `<application>-<leaf name>` hierarchy, so the leaf stays
   short; `module` is **not** part of the id (it lives in the `ohi:module` tag).
+  There is **one** leaf slot, shared by every level of a context chain — see
+  [Child labels and name uniqueness](#child-labels-and-name-uniqueness).
 - **`stage` is a scope, not a flag** — one of `dev`, `qa`, `stg`, `prd`, or `np`
   for the whole non-prod set. `np` is **not** a deployment stage: use it only
   where the resource's scope genuinely is all of `dev`/`qa`/`stg` — the shared
@@ -103,11 +105,46 @@ module "api_label" {
 See [`examples/complete`](examples/complete) for more (a non-prod-wide `np`
 resource, a stage-less resource, unprefixed tag keys, and a length-limited id).
 
+## Child labels and name uniqueness
+
+`application` and `name` fold into CloudPosse's single `name` component, so
+there is **one leaf slot** for the whole context chain. A child label that
+states a `name` **replaces** the inherited one rather than nesting under it.
+Two patterns follow, both shown in the Usage example above:
+
+1. **The leaf owns `name`.** A parent that is not itself a leaf — an account,
+   namespace or repo root label — leaves `name` unset and sets only the
+   hierarchy it knows (`application`, and `module` for the tags). The child
+   sets `name` into the empty slot, so nothing is replaced:
+   `cnct-uk-prd-mobile` plus `name = "api"` -> `cnct-uk-prd-mobile-api`.
+2. **Below the leaf, extend with `attributes`.** A child of a leaf inherits the
+   resolved `name` and appends an attribute instead of restating a name:
+   `cnct-uk-prd-mobile-api` plus `attributes = ["v1"]` ->
+   `cnct-uk-prd-mobile-api-v1`. Attributes merge down the context and are
+   deduplicated, so each level adds its own without repeating its parents'.
+
+**A leaf `name` must be unique within its `namespace`/`application`.** Because
+a child that states a `name` occupies the same slot as a sibling leaf, `api`'s
+child label named `worker` and a sibling service named `worker` both resolve to
+`cnct-uk-prd-mobile-worker`. The module does not detect this — the collision is
+pinned in `tests/resource_naming.tftest.hcl` so the behaviour cannot change
+silently, not fixed.
+
+A module that exports its resolved context for children to extend should
+withhold the leaf name, so a child cannot silently inherit it and compose an id
+identical to the exporting module's own resource:
+
+```hcl
+output "label_context" {
+  value = merge(module.label.context, { name = null })
+}
+```
+
 <!-- BEGIN_TF_DOCS -->
 ### Requirements
 
 | Name | Version |
-| ---- | ------- |
+|------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3.0 |
 
 ### Providers
@@ -117,7 +154,7 @@ No providers.
 ### Modules
 
 | Name | Source | Version |
-| ---- | ------ | ------- |
+|------|--------|---------|
 | <a name="module_cloudposse_label"></a> [cloudposse\_label](#module\_cloudposse\_label) | cloudposse/label/null | 0.25.0 |
 
 ### Resources
@@ -127,7 +164,7 @@ No resources.
 ### Inputs
 
 | Name | Description | Type | Default | Required |
-| ---- | ----------- | ---- | ------- | :------: |
+|------|-------------|------|---------|:--------:|
 | <a name="input_application"></a> [application](#input\_application) | Application segment under the namespace, e.g. "mobile" -> ohi:application = mobile, and the leading part of the id name (cnct-uk-prd-mobile-...). Leave empty for namespace-level (e.g. shared infra). | `string` | `null` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | Ordered list of extra attributes appended to the id. Merged onto any inherited from context. | `list(string)` | `null` | no |
 | <a name="input_aws_region"></a> [aws\_region](#input\_aws\_region) | AWS region code, e.g. us-east-1, eu-central-1, eu-west-2. Emitted as the ohi:aws-region tag; NOT part of the id (through account navigation the AWS region is already a given). | `string` | `null` | no |
@@ -153,7 +190,7 @@ No resources.
 ### Outputs
 
 | Name | Description |
-| ---- | ----------- |
+|------|-------------|
 | <a name="output_context"></a> [context](#output\_context) | The label context to pass to child label modules. |
 | <a name="output_enabled"></a> [enabled](#output\_enabled) | Whether this label is enabled. |
 | <a name="output_id"></a> [id](#output\_id) | The generated id from CloudPosse null-label: <namespace>-<region>-<stage>-<name>-<attributes...> (module is not part of the id — it lives in the ohi:module tag). Truncated (with a trailing hash) when it exceeds id\_length\_limit. Empty when enabled = false. |
