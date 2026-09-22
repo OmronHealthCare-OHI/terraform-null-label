@@ -92,17 +92,6 @@ jobs:
           path: ${{inputs.terraform_directory}}/test-results.xml
           retention-days: 30
 
-      # Findings do not depend on the Terraform version, so only one leg runs it.
-      - name: Checkov validation
-        id: checkov
-        if: matrix.primary
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          # CLI output to the console only (no SARIF file is produced with this config)
-          output_format: cli
-          output_file_path: console
-          config_file: .checkov-config.yml
-
       # The examples are the module's published usage contract, and `terraform
       # validate` does NOT evaluate preconditions — those are plan-time only. So
       # an example that cannot plan (e.g. one tripping an output precondition)
@@ -136,3 +125,29 @@ jobs:
           echo "terraform fmt outcome:  ${{ steps.tf-fmt.outcome }}"
           echo "terraform test outcome: ${{ steps.tf-test.outcome }}"
           exit 1
+
+  # Findings do not depend on the Terraform version, so this runs once rather
+  # than on a matrix leg. It used to be a step in `terraform`, gated on
+  # `matrix.primary` -- so pinning the matrix to explicit versions and dropping
+  # the primary leg would have stopped scanning silently, with the build green.
+  # Its own job keeps it running for every caller of this workflow.
+  checkov:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read # for actions/checkout to fetch code
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.GH_TOKEN }}
+      - name: Checkov validation
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          # CLI output to the console only (no SARIF file is produced with this config)
+          output_format: cli
+          output_file_path: console
+          config_file: .checkov-config.yml
